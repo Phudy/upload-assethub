@@ -1,293 +1,549 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>รวมข้อมูลสินทรัพย์ กฟก.3</title>
+<title>ระบบสร้างข้อมูล Asset Hub</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root{
-    --ink:#16122B; --panel:#1E1940; --panel2:#251F4C; --rule:#372E68;
-    --text:#E9E5F8; --muted:#A29ACB; --violet:#A265E8; --amber:#F0A93C;
-    --ok:#4CCFA2; --warn:#E8705A;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{
-    background:var(--ink); color:var(--text);
-    font-family:'IBM Plex Sans Thai',system-ui,sans-serif;
-    font-weight:300; font-size:15px; line-height:1.65;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1180px;margin:0 auto;padding:40px 24px 96px}
+:root{
+  --bg:#12101F; --surface:#1A182C; --surface2:#221F39; --line:#2F2B4C; --line2:#3B3660;
+  --text:#EDEAF7; --muted:#9A93BC; --faint:#6E6790;
+  --brand:#8B5CF6; --brand2:#C4A5FF; --amber:#F59E0B; --ok:#34D399; --warn:#FB7185; --info:#38BDF8;
+  --shadow:0 18px 40px -22px rgba(0,0,0,.85);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --r:10px;
+}
+[data-theme=light]{
+  --bg:#F6F5FB; --surface:#FFFFFF; --surface2:#F2F0FA; --line:#E4E0F0; --line2:#D3CDE8;
+  --text:#1C1930; --muted:#615C7F; --faint:#8A85A6;
+  --brand:#7C3AED; --brand2:#5B21B6; --amber:#D97706; --ok:#059669; --warn:#E11D48; --info:#0284C7;
+  --shadow:0 14px 34px -22px rgba(40,20,90,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'IBM Plex Sans Thai',system-ui,sans-serif; font-weight:300;
+  font-size:14.5px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+button,input,select{font-family:inherit}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:6px;border:3px solid var(--bg)}
 
-  header{border-bottom:1px solid var(--rule);padding-bottom:24px;margin-bottom:40px}
-  h1{font-size:29px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
-  header p{margin:0;color:var(--muted);max-width:62ch}
-  header .src{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-top:14px}
-  header .src b{color:var(--violet);font-weight:500}
+/* ---------- chrome ---------- */
+.topbar{
+  position:sticky;top:0;z-index:60;background:var(--bg);
+  border-bottom:1px solid var(--line);
+}
+.topbar .in{max-width:1440px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;gap:18px}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}
+.mark{width:30px;height:30px;flex:none}
+.brand h1{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.brand small{display:block;font-size:11.5px;color:var(--muted);font-weight:300;line-height:1.3}
+.steps{display:flex;align-items:center;gap:6px;margin-left:12px}
+.step{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--faint)}
+.step i{width:20px;height:20px;border-radius:50%;border:1px solid var(--line2);display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-style:normal}
+.step.on{color:var(--text)} .step.on i{border-color:var(--brand);color:var(--brand)}
+.step.done i{background:var(--brand);border-color:var(--brand);color:#fff}
+.step em{width:22px;height:1px;background:var(--line2);display:block}
+.grow{flex:1}
+.iconbtn{
+  background:transparent;border:1px solid var(--line);color:var(--muted);
+  width:34px;height:34px;border-radius:8px;cursor:pointer;display:grid;place-items:center;transition:.15s
+}
+.iconbtn:hover{color:var(--brand);border-color:var(--brand)}
 
-  /* ---- intake wiring ---- */
-  .rig{display:grid;grid-template-columns:1fr 92px 300px;gap:0;align-items:center}
-  .ports{display:flex;flex-direction:column;gap:14px}
-  .wireCol{position:relative;align-self:stretch}
-  .wireCol svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-  .wire{fill:none;stroke:var(--rule);stroke-width:1.5}
-  .wire.live{stroke:var(--violet)}
+.page{max-width:1440px;margin:0 auto;padding:30px 22px 120px}
 
-  .port{
-    display:grid;grid-template-columns:38px 1fr auto;gap:14px;align-items:center;
-    background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--rule);
-    border-radius:3px;padding:14px 16px;cursor:pointer;
-    transition:border-color .18s, background .18s;
-  }
-  .port:hover{background:var(--panel2)}
-  .port:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
-  .port.loaded{border-left-color:var(--ok)}
-  .port.bad{border-left-color:var(--warn)}
-  .port .tag{
-    font-family:var(--mono);font-size:11px;color:var(--muted);
-    border:1px solid var(--rule);border-radius:2px;text-align:center;padding:3px 0;
-  }
-  .port.loaded .tag{color:var(--ok);border-color:var(--ok)}
-  .port.bad .tag{color:var(--warn);border-color:var(--warn)}
-  .port h3{margin:0;font-size:15px;font-weight:600}
-  .port .note{margin:0;font-size:12.5px;color:var(--muted);font-family:var(--mono)}
-  .port .cnt{font-family:var(--mono);font-size:13px;color:var(--ok)}
+/* ---------- buttons ---------- */
+.btn{
+  border:1px solid transparent;border-radius:8px;padding:9px 16px;font-size:13.5px;font-weight:500;
+  cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:8px;white-space:nowrap
+}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-p{background:var(--brand);color:#fff}
+.btn-p:hover:not(:disabled){filter:brightness(1.12)}
+.btn-g{background:transparent;color:var(--text);border-color:var(--line2)}
+.btn-g:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+.btn-a{background:var(--amber);color:#231502}
+.btn-a:hover:not(:disabled){filter:brightness(1.08)}
+.btn-s{padding:5px 10px;font-size:12px}
 
-  .node{
-    background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:20px;
-  }
-  .node h3{margin:0 0 4px;font-size:15px;font-weight:600}
-  .node p{margin:0 0 16px;font-size:12.5px;color:var(--muted)}
-  .field{margin-bottom:16px}
-  .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
-  input[type=text],select{
-    width:100%;background:var(--ink);color:var(--text);border:1px solid var(--rule);
-    border-radius:2px;padding:8px 10px;font-family:var(--mono);font-size:13px;
-  }
-  input[type=text]:focus,select:focus{outline:none;border-color:var(--violet)}
+/* ---------- import ---------- */
+.import{display:grid;grid-template-columns:1fr 80px 320px;align-items:center}
+.ports{display:flex;flex-direction:column;gap:12px}
+.wirebox{position:relative;align-self:stretch}
+.wirebox svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.wire{fill:none;stroke:var(--line2);stroke-width:1.5;transition:stroke .3s}
+.wire.live{stroke:var(--brand)}
 
-  button{
-    font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;
-    border-radius:2px;padding:11px 18px;border:1px solid transparent;transition:.15s;
-  }
-  .btn-primary{background:var(--violet);color:#120E24;width:100%}
-  .btn-primary:hover:not(:disabled){background:#B47CF0}
-  .btn-primary:disabled{background:var(--panel2);color:var(--muted);cursor:not-allowed;border-color:var(--rule)}
-  .btn-ghost{background:transparent;color:var(--text);border-color:var(--rule)}
-  .btn-ghost:hover{border-color:var(--violet);color:var(--violet)}
-  .btn-amber{background:var(--amber);color:#241703}
-  .btn-amber:hover{background:#F7BB5C}
+.port{
+  display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:center;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:15px 17px;cursor:pointer;transition:.16s;position:relative;overflow:hidden
+}
+.port:hover{border-color:var(--line2);transform:translateY(-1px)}
+.port:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.port.loaded{border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.port.bad{border-color:color-mix(in srgb,var(--warn) 50%,var(--line))}
+.port .tag{
+  font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line2);
+  border-radius:6px;text-align:center;padding:5px 0;letter-spacing:.02em
+}
+.port.loaded .tag{color:var(--ok);border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.port.bad .tag{color:var(--warn);border-color:var(--warn)}
+.port h3{margin:0;font-size:14.5px;font-weight:500}
+.port .note{margin:0;font-size:12px;color:var(--muted);font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46ch}
+.port .cnt{font-family:var(--mono);font-size:12.5px;color:var(--ok);text-align:right}
+.port .cnt b{display:block;font-size:15px;font-weight:500}
+.port .cnt s{display:block;font-size:11px;color:var(--faint);text-decoration:none}
 
-  .dropzone{
-    margin-top:22px;border:1px dashed var(--rule);border-radius:3px;
-    padding:16px;text-align:center;color:var(--muted);font-size:13px;
-  }
-  .dropzone.over{border-color:var(--violet);color:var(--violet);background:var(--panel)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.panel h3{margin:0 0 3px;font-size:14.5px;font-weight:600}
+.panel p.sub{margin:0 0 16px;font-size:12.5px;color:var(--muted)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+input[type=text],select{
+  width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:8px 11px;font-size:13px
+}
+input[type=text]{font-family:var(--mono)}
+input:focus,select:focus{outline:none;border-color:var(--brand)}
+.dzhero{
+  border:2px dashed var(--line2);border-radius:16px;padding:34px 28px;margin-bottom:22px;
+  display:flex;align-items:center;justify-content:center;gap:22px;cursor:pointer;
+  background:var(--surface);transition:.16s;text-align:left;width:100%
+}
+.dzhero:hover{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 6%,var(--surface))}
+.dzhero:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+.dzhero .ico{
+  width:56px;height:56px;border-radius:16px;flex:none;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)
+}
+.dzhero h2{margin:0 0 3px;font-size:17px;font-weight:600}
+.dzhero p{margin:0;font-size:13px;color:var(--muted)}
+.dzhero .fmt{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.dzhero .fmt span{
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  border:1px solid var(--line);border-radius:99px;padding:2px 9px
+}
+.dzhero.over{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 10%,var(--surface))}
 
-  /* ---- results ---- */
-  section.result{margin-top:48px;display:none}
-  section.result.on{display:block}
-  .secline{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--rule);padding-bottom:10px;margin-bottom:22px}
-  .secline h2{font-size:19px;font-weight:600;margin:0}
-  .secline span{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.dragveil{
+  position:fixed;inset:0;z-index:200;display:none;place-items:center;
+  background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(6px)
+}
+.dragveil.on{display:grid}
+.dragveil .box{
+  border:2.5px dashed var(--brand);border-radius:24px;padding:64px 96px;text-align:center;
+  background:color-mix(in srgb,var(--brand) 8%,var(--surface))
+}
+.dragveil h2{margin:16px 0 4px;font-size:22px;font-weight:600}
+.dragveil p{margin:0;color:var(--muted);font-size:14px}
+.log{margin-top:12px;font-family:var(--mono);font-size:12px;color:var(--muted);min-height:20px}
+.log.err{color:var(--warn)}
 
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
-  .stat{background:var(--panel);padding:15px 17px}
-  .stat .k{font-size:12px;color:var(--muted);margin-bottom:3px}
-  .stat .v{font-family:var(--mono);font-size:19px;font-weight:500}
-  .stat .v.money{font-size:16px}
+/* ---------- workspace ---------- */
+.ws{display:none;margin-top:40px}
+.ws.on{display:block}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:24px;overflow-x:auto}
+.tab{
+  background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);
+  padding:11px 17px;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;transition:.15s
+}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+.tab span{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:6px}
+.view{display:none} .view.on{display:block}
 
-  .flags{margin-top:16px;display:flex;flex-direction:column;gap:8px}
-  .flag{display:flex;gap:11px;align-items:flex-start;font-size:13.5px;background:var(--panel);border-left:3px solid var(--amber);padding:10px 14px;border-radius:2px}
-  .flag.good{border-left-color:var(--ok)}
-  .flag b{font-family:var(--mono);font-weight:500}
-  .flag button{padding:2px 9px;font-size:12px;font-weight:400;margin-left:auto;flex:none}
+/* ---------- kpi ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden}
+.kpi .k{font-size:12px;color:var(--muted);margin-bottom:4px}
+.kpi .v{font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-.02em}
+.kpi .v.sm{font-size:17px}
+.kpi .d{font-size:11.5px;color:var(--faint);margin-top:3px}
+.kpi::after{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand);opacity:.75}
+.kpi.ok::after{background:var(--ok)} .kpi.amber::after{background:var(--amber)} .kpi.info::after{background:var(--info)}
 
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:26px 0 14px}
-  .toolbar input[type=text]{flex:1 1 240px;width:auto}
-  .toolbar select{flex:0 1 210px;width:auto}
-  .spacer{flex:1}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;margin-top:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.card h4{margin:0 0 2px;font-size:13.5px;font-weight:600}
+.card .cap{margin:0 0 16px;font-size:11.5px;color:var(--muted)}
 
-  .tablebox{border:1px solid var(--rule);border-radius:3px;overflow:auto;max-height:520px}
-  table{border-collapse:collapse;width:100%;font-size:12.5px;white-space:nowrap}
-  thead th{
-    position:sticky;top:0;background:var(--panel2);color:var(--text);font-weight:600;
-    text-align:left;padding:9px 11px;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);
-  }
-  tbody td{padding:7px 11px;border-bottom:1px solid rgba(55,46,104,.5);border-right:1px solid rgba(55,46,104,.5);color:#D5D0EC}
-  tbody tr:hover td{background:var(--panel)}
-  td.num{text-align:right;font-family:var(--mono)}
-  td.code{font-family:var(--mono)}
-  .more{padding:11px;text-align:center;color:var(--muted);font-size:12.5px;font-family:var(--mono)}
+.blist{display:flex;flex-direction:column;gap:9px}
+.brow{display:grid;grid-template-columns:1fr auto;gap:10px;font-size:12.5px;align-items:baseline}
+.brow .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .vl{font-family:var(--mono);color:var(--muted);font-size:12px}
+.btrack{grid-column:1/-1;height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:-4px}
+.btrack i{display:block;height:100%;background:var(--brand);border-radius:3px}
 
-  .log{margin-top:18px;font-family:var(--mono);font-size:12.5px;color:var(--muted);min-height:22px}
-  .log .err{color:var(--warn)}
+.donutwrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.legend{flex:1;min-width:170px;display:flex;flex-direction:column;gap:7px}
+.lg{display:grid;grid-template-columns:9px 1fr auto;gap:9px;align-items:center;font-size:12.5px}
+.lg i{width:9px;height:9px;border-radius:2px}
+.lg b{font-family:var(--mono);font-weight:400;font-size:12px;color:var(--muted)}
 
-  .syncgrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px}
-  .syncrow{display:flex;gap:16px;align-items:center;margin-top:6px;flex-wrap:wrap}
-  .bar{flex:1 1 220px;height:5px;background:var(--panel2);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
-  .bar i{display:block;height:100%;width:0;background:var(--violet);transition:width .2s}
-  .gsmsg{font-family:var(--mono);font-size:12.5px;color:var(--muted);flex:1 1 100%}
-  .gsmsg.err{color:var(--warn)}
-  .gsmsg.ok{color:var(--ok)}
-  .hint{font-size:12.5px;color:var(--muted);margin:14px 0 20px;max-width:78ch}
-  @media (max-width:760px){ .syncgrid{grid-template-columns:1fr} }
+/* ---------- toolbar / table ---------- */
+.bar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.bar input[type=text]{flex:1 1 250px;width:auto}
+.bar select{flex:0 1 180px;width:auto}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--line);
+  border-radius:99px;padding:4px 6px 4px 12px;font-size:12px;color:var(--muted)
+}
+.chip b{color:var(--text);font-weight:500}
+.chip button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0 4px}
+.chip button:hover{color:var(--warn)}
 
-  footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted)}
-  footer code{font-family:var(--mono);color:#C4BCE4}
+.vt{
+  border:1px solid var(--line);border-radius:var(--r);overflow:auto;height:min(62vh,600px);
+  background:var(--surface);position:relative
+}
+.vhead{position:sticky;top:0;z-index:5;display:grid;background:var(--surface2);border-bottom:1px solid var(--line2)}
+.vhead .h{
+  padding:9px 11px;font-size:12px;font-weight:600;border-right:1px solid var(--line);
+  cursor:pointer;user-select:none;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden
+}
+.vhead .h:hover{color:var(--brand)}
+.vhead .h.num{justify-content:flex-end}
+.vhead .h em{font-style:normal;font-size:10px;color:var(--brand)}
+.vbody{position:relative}
+.vrow{position:absolute;left:0;display:grid;align-items:center;cursor:pointer;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.vrow:hover{background:var(--surface2)}
+.vrow.sel{background:color-mix(in srgb,var(--brand) 14%,transparent)}
+.vrow .c{padding:0 11px;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:color-mix(in srgb,var(--text) 88%,transparent)}
+.vrow .c.num{text-align:right;font-family:var(--mono)}
+.vrow .c.code{font-family:var(--mono)}
+.vrow .c.neg{color:var(--warn)}
+.empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:13px}
+.tfoot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--muted);font-family:var(--mono);flex-wrap:wrap;gap:10px}
 
-  @media (max-width:860px){
-    .rig{grid-template-columns:1fr;gap:22px}
-    .wireCol{display:none}
-  }
-  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ---------- column picker ---------- */
+.pop{position:relative}
+.popmenu{
+  position:absolute;right:0;top:calc(100% + 6px);z-index:40;background:var(--surface);
+  border:1px solid var(--line2);border-radius:var(--r);box-shadow:var(--shadow);padding:10px;
+  width:270px;max-height:340px;overflow:auto;display:none
+}
+.popmenu.on{display:block}
+.popmenu label{display:flex;align-items:center;gap:9px;padding:5px 7px;border-radius:6px;font-size:12.5px;cursor:pointer}
+.popmenu label:hover{background:var(--surface2)}
+input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
+.popmenu .act{display:flex;gap:7px;padding:8px 6px 4px;border-top:1px solid var(--line);margin-top:6px}
+
+/* ---------- drawer ---------- */
+.scrim{position:fixed;inset:0;background:rgba(8,6,18,.55);z-index:80;display:none}
+.scrim.on{display:block}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;width:min(460px,92vw);background:var(--surface);
+  border-left:1px solid var(--line2);z-index:90;transform:translateX(100%);transition:transform .22s ease;
+  display:flex;flex-direction:column
+}
+.drawer.on{transform:none}
+.drawer header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+.drawer header h3{margin:0;font-size:15px;font-weight:600}
+.drawer header p{margin:2px 0 0;font-size:12px;color:var(--muted);font-family:var(--mono)}
+.drawer .body{overflow:auto;padding:8px 22px 28px}
+.dl{display:grid;grid-template-columns:130px 1fr;gap:2px 14px;padding:9px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);font-size:13px}
+.dl dt{color:var(--muted);font-size:12px}
+.dl dd{margin:0;word-break:break-word}
+.dl dd.mono{font-family:var(--mono)}
+
+/* ---------- quality ---------- */
+.issue{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--r);padding:15px 18px;margin-bottom:10px}
+.issue.good{border-left-color:var(--ok)}
+.issue .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber);flex:none;font-size:14px}
+.issue.good .ic{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.issue h4{margin:0 0 2px;font-size:13.5px;font-weight:600}
+.issue p{margin:0;font-size:12.5px;color:var(--muted)}
+.issue .n{font-family:var(--mono);color:var(--text)}
+
+/* ---------- export bar ---------- */
+.exportbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:50;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  backdrop-filter:blur(10px);border-top:1px solid var(--line);display:none
+}
+.exportbar.on{display:block}
+.exportbar .in{max-width:1440px;margin:0 auto;padding:12px 22px;display:flex;gap:11px;align-items:center;flex-wrap:wrap}
+.exportbar .sum{font-size:12.5px;color:var(--muted)}
+.exportbar .sum b{color:var(--text);font-family:var(--mono);font-weight:500}
+
+/* ---------- toast ---------- */
+.toasts{position:fixed;right:20px;bottom:88px;z-index:120;display:flex;flex-direction:column;gap:9px}
+.toast{
+  background:var(--surface);border:1px solid var(--line2);border-left:3px solid var(--brand);
+  border-radius:9px;padding:11px 16px;font-size:13px;box-shadow:var(--shadow);max-width:340px;
+  animation:tin .22s ease
+}
+.toast.ok{border-left-color:var(--ok)} .toast.err{border-left-color:var(--warn)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}}
+
+.pbar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:12px}
+.pbar i{display:block;height:100%;width:0;background:var(--brand);transition:width .2s}
+
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);font-size:12px;color:var(--faint)}
+footer code{font-family:var(--mono)}
+
+@media (max-width:960px){
+  .import{grid-template-columns:1fr;gap:18px}
+  .wirebox{display:none}
+  .steps{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<header>
-  <h1>รวมข้อมูลสินทรัพย์ กฟก.3</h1>
-  <p>วางไฟล์ HUB1, HUB2 และ HR แล้วระบบจะต่อข้อมูลให้เป็นตาราง Data ชุดเดียว พร้อมเติมชื่อ ศ.ต้นทุน ชื่อพนักงาน สถานะ และหมวดสินทรัพย์ให้อัตโนมัติ</p>
-  <p class="src">ผลลัพธ์ = <b>22 คอลัมน์</b> เรียงลำดับเดียวกับชีต Data ของไฟล์ 963-I-ระบบ</p>
-</header>
+<div class="topbar">
+  <div class="in">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="30" height="30" rx="8" stroke="var(--brand)" stroke-width="1.5"/>
+        <path d="M9 10h5M9 16h5M9 22h5M14 10c5 0 4 6 9 6M14 16h9M14 22c5 0 4-6 9-6" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="23" cy="16" r="2.6" fill="var(--brand)"/>
+      </svg>
+      <div>
+        <h1>ระบบสร้างข้อมูล Asset Hub</h1>
+        <small>รวม HUB1 · HUB2 · HR เป็นตาราง Data ชุดเดียว</small>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="step on" id="st1"><i>1</i>นำเข้าไฟล์</div><em></em>
+      <div class="step" id="st2"><i>2</i>รวมข้อมูล</div><em></em>
+      <div class="step" id="st3"><i>3</i>ตรวจและส่งออก</div>
+    </div>
+    <div class="grow"></div>
+    <button class="iconbtn" id="reset" title="ล้างข้อมูลทั้งหมด">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>
+    </button>
+    <button class="iconbtn" id="theme" title="สลับธีมสว่าง/มืด">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    </button>
+  </div>
+</div>
 
-<div class="rig">
-  <div class="ports">
-    <div class="port" id="port-hub1" tabindex="0" role="button">
-      <div class="tag">HUB1</div>
-      <div>
-        <h3>รายงานสินทรัพย์ตามศูนย์ต้นทุน</h3>
-        <p class="note" data-note>ยังไม่ได้เลือกไฟล์ · .xls / .xlsx</p>
+<div class="page">
+
+  <button class="dzhero" id="dz">
+    <span class="ico">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v13"/>
+      </svg>
+    </span>
+    <span>
+      <h2>ลากไฟล์ทั้ง 3 มาวางตรงไหนก็ได้ในหน้านี้</h2>
+      <p>หรือคลิกเพื่อเลือกไฟล์ ระบบจะแยกเองว่าไฟล์ไหนคือ HUB1 HUB2 หรือ HR</p>
+      <span class="fmt"><span>HUB1 .xls</span><span>HUB2 .xls</span><span>HR .xlsx</span></span>
+    </span>
+  </button>
+
+  <div class="import" id="importArea">
+    <div class="ports">
+      <div class="port" id="port-hub1" tabindex="0" role="button">
+        <div class="tag">HUB1</div>
+        <div><h3>รายงานสินทรัพย์ตามศูนย์ต้นทุน</h3><p class="note" data-note>คลิกเพื่อเลือกไฟล์ · .xls / .xlsx</p></div>
+        <div class="cnt" data-cnt></div>
       </div>
-      <div class="cnt" data-cnt></div>
+      <div class="port" id="port-hub2" tabindex="0" role="button">
+        <div class="tag">HUB2</div>
+        <div><h3>ยอดสินทรัพย์คงเหลือ · สถานะและคลาส</h3><p class="note" data-note>คลิกเพื่อเลือกไฟล์ · .xls / .xlsx</p></div>
+        <div class="cnt" data-cnt></div>
+      </div>
+      <div class="port" id="port-hr" tabindex="0" role="button">
+        <div class="tag">HR</div>
+        <div><h3>ทะเบียนพนักงาน</h3><p class="note" data-note>คลิกเพื่อเลือกไฟล์ · .xlsx</p></div>
+        <div class="cnt" data-cnt></div>
+      </div>
     </div>
-    <div class="port" id="port-hub2" tabindex="0" role="button">
-      <div class="tag">HUB2</div>
-      <div>
-        <h3>ยอดสินทรัพย์คงเหลือ (สถานะ + คลาส)</h3>
-        <p class="note" data-note>ยังไม่ได้เลือกไฟล์ · .xls / .xlsx</p>
-      </div>
-      <div class="cnt" data-cnt></div>
+
+    <div class="wirebox">
+      <svg viewBox="0 0 80 200" preserveAspectRatio="none" aria-hidden="true">
+        <path class="wire" id="w1" d="M0,32 C40,32 40,100 80,100"/>
+        <path class="wire" id="w2" d="M0,100 L80,100"/>
+        <path class="wire" id="w3" d="M0,168 C40,168 40,100 80,100"/>
+      </svg>
     </div>
-    <div class="port" id="port-hr" tabindex="0" role="button">
-      <div class="tag">HR</div>
-      <div>
-        <h3>ทะเบียนพนักงาน</h3>
-        <p class="note" data-note>ยังไม่ได้เลือกไฟล์ · .xlsx</p>
+
+    <div class="panel">
+      <h3>รวมข้อมูล</h3>
+      <p class="sub">ต่อ HUB2 และ HR เข้ากับ HUB1 ด้วย ASS.NO. และ Pers.No.</p>
+      <div class="field">
+        <label for="dataDate">Data Date · เติมลงทุกแถว</label>
+        <input type="text" id="dataDate" placeholder="เช่น 31/7/2569">
       </div>
-      <div class="cnt" data-cnt></div>
+      <button class="btn btn-p" id="run" style="width:100%;justify-content:center" disabled>รวมข้อมูล</button>
+      <div class="pbar"><i id="pb"></i></div>
+      <div class="log" id="log"></div>
     </div>
   </div>
 
-  <div class="wireCol">
-    <svg viewBox="0 0 92 200" preserveAspectRatio="none" aria-hidden="true">
-      <path class="wire" id="w1" d="M0,34 C46,34 46,100 92,100"/>
-      <path class="wire" id="w2" d="M0,100 L92,100"/>
-      <path class="wire" id="w3" d="M0,166 C46,166 46,100 92,100"/>
+  <div class="ws" id="ws">
+    <div class="tabs">
+      <button class="tab on" data-view="dash">แดชบอร์ด</button>
+      <button class="tab" data-view="table">ตารางข้อมูล<span id="tabCount"></span></button>
+      <button class="tab" data-view="pivot">สรุปตามกลุ่ม</button>
+      <button class="tab" data-view="qa">คุณภาพข้อมูล<span id="tabIssues"></span></button>
+    </div>
+
+    <!-- dashboard -->
+    <div class="view on" id="v-dash">
+      <div class="kpis" id="kpis"></div>
+      <div class="cards">
+        <div class="card">
+          <h4>สัดส่วนตามสถานะ</h4>
+          <p class="cap">นับจำนวนรายการ</p>
+          <div class="donutwrap"><div id="donut"></div><div class="legend" id="donutLegend"></div></div>
+        </div>
+        <div class="card">
+          <h4>หมวดสินทรัพย์ที่มีมูลค่าตามบัญชีสูงสุด</h4>
+          <p class="cap">10 อันดับแรก</p>
+          <div class="blist" id="topClass"></div>
+        </div>
+        <div class="card">
+          <h4>ศูนย์ต้นทุนที่ถือครองมูลค่าสูงสุด</h4>
+          <p class="cap">10 อันดับแรก</p>
+          <div class="blist" id="topCc"></div>
+        </div>
+        <div class="card">
+          <h4>มูลค่าการได้มาแยกตามปี</h4>
+          <p class="cap">10 ปีล่าสุดที่มีข้อมูล</p>
+          <div class="blist" id="byYear"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- table -->
+    <div class="view" id="v-table">
+      <div class="bar">
+        <input type="text" id="q" placeholder="ค้นหา เลขสินทรัพย์ · คำอธิบาย · ชื่อพนักงาน · ศูนย์ต้นทุน  (กด / เพื่อโฟกัส)">
+        <select id="fStatus"><option value="">ทุกสถานะ</option></select>
+        <select id="fClass"><option value="">ทุกคลาส</option></select>
+        <select id="fCc"><option value="">ทุกศูนย์ต้นทุน</option></select>
+        <select id="fYear"><option value="">ทุกปีที่ได้มา</option></select>
+        <select id="fOwner">
+          <option value="">ผู้ครอบครองทั้งหมด</option>
+          <option value="has">ระบุผู้ครอบครองแล้ว</option>
+          <option value="none">ยังไม่ระบุผู้ครอบครอง</option>
+        </select>
+        <div class="pop">
+          <button class="btn btn-g" id="colBtn">คอลัมน์</button>
+          <div class="popmenu" id="colMenu"></div>
+        </div>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="vt" id="vt">
+        <div class="vhead" id="vhead"></div>
+        <div class="vbody" id="vbody"></div>
+        <div class="empty" id="vempty" style="display:none">ไม่พบแถวที่ตรงกับเงื่อนไข</div>
+      </div>
+      <div class="tfoot">
+        <span id="tinfo"></span>
+        <span id="tsum"></span>
+      </div>
+    </div>
+
+    <!-- pivot -->
+    <div class="view" id="v-pivot">
+      <div class="bar">
+        <select id="pGroup"></select>
+        <select id="pSort">
+          <option value="3">เรียงตามมูลค่าตามบัญชี</option>
+          <option value="1">เรียงตามมูลค่าการได้มา</option>
+          <option value="0">เรียงตามจำนวนรายการ</option>
+          <option value="k">เรียงตามชื่อกลุ่ม</option>
+        </select>
+        <div class="grow"></div>
+        <button class="btn btn-g" id="pCsv">ส่งออกสรุปเป็น CSV</button>
+        <button class="btn btn-g" id="pXlsx">ส่งออกสรุปเป็น Excel</button>
+      </div>
+      <div class="vt" style="height:min(62vh,600px)">
+        <div class="vhead" id="phead" style="grid-template-columns:minmax(240px,1.6fr) 120px 1fr 1fr 1fr 90px"></div>
+        <div id="pbody"></div>
+      </div>
+      <div class="tfoot"><span id="pinfo"></span></div>
+    </div>
+
+    <!-- quality -->
+    <div class="view" id="v-qa">
+      <div id="issues"></div>
+    </div>
+  </div>
+
+  <footer>
+    ประมวลผลในเครื่องทั้งหมด ไม่มีการส่งข้อมูลออกนอกเบราว์เซอร์ · ตารางอ้างอิงชื่อ ศ.ต้นทุน สถานะ และหมวดสินทรัพย์ ฝังอยู่ในไฟล์นี้ แก้ได้ที่ตัวแปร <code>MASTERS</code>
+  </footer>
+</div>
+
+<div class="exportbar" id="exportbar">
+  <div class="in">
+    <span class="sum" id="ebSum"></span>
+    <div class="grow"></div>
+    <button class="btn btn-a" id="dlXlsx">ดาวน์โหลด Excel</button>
+    <button class="btn btn-g" id="dlCsv">ดาวน์โหลด CSV</button>
+  </div>
+</div>
+
+<div class="dragveil" id="veil">
+  <div class="box">
+    <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto;display:block">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v13"/>
     </svg>
-  </div>
-
-  <div class="node">
-    <h3>ตั้งค่าและรวมข้อมูล</h3>
-    <p>ตรวจไฟล์ครบแล้วจึงกดรวม</p>
-    <div class="field">
-      <label for="dataDate">Data Date (เติมลงทุกแถว)</label>
-      <input type="text" id="dataDate" placeholder="เช่น 31/7/2569">
-    </div>
-    <button class="btn-primary" id="run" disabled>รวมข้อมูล</button>
-    <div class="log" id="log"></div>
+    <h2>วางไฟล์ได้เลย</h2>
+    <p>รับได้ทีละหลายไฟล์ ระบบแยกประเภทให้เอง</p>
   </div>
 </div>
 
-<div class="dropzone" id="dz">ลากไฟล์ทั้ง 3 มาวางตรงนี้พร้อมกันได้ ระบบจะแยกประเภทให้เอง</div>
-
-<section class="result" id="result">
-  <div class="secline">
-    <h2>ผลลัพธ์</h2>
-    <span id="resultMeta"></span>
-  </div>
-
-  <div class="stats" id="stats"></div>
-  <div class="flags" id="flags"></div>
-
-  <div class="toolbar">
-    <input type="text" id="q" placeholder="ค้นหา: เลขสินทรัพย์ / คำอธิบาย / ชื่อพนักงาน / ศ.ต้นทุน">
-    <select id="fStatus"><option value="">ทุกสถานะ</option></select>
-    <select id="fClass"><option value="">ทุกคลาส</option></select>
-    <div class="spacer"></div>
-    <button class="btn-amber" id="dlXlsx">ดาวน์โหลด Excel</button>
-    <button class="btn-ghost" id="dlCsv">ดาวน์โหลด CSV</button>
-  </div>
-
-  <div class="tablebox">
-    <table>
-      <thead><tr id="thead"></tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
-    <div class="more" id="more"></div>
-  </div>
-
-  <div class="secline" style="margin-top:44px">
-    <h2>อัปเดตขึ้น Google Sheet</h2>
-    <span id="gsScope"></span>
-  </div>
-  <p class="hint">เขียนทับชีตปลายทางทั้งแผ่นด้วยข้อมูลชุดใหม่ ต้องติดตั้ง Apps Script ในไฟล์ Google Sheet ก่อนหนึ่งครั้ง แล้วนำ Web App URL กับรหัสลับมากรอกตรงนี้</p>
-  <div class="syncgrid">
-    <div class="field">
-      <label for="gsUrl">Web App URL</label>
-      <input type="text" id="gsUrl" placeholder="https://script.google.com/macros/s/…/exec">
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <header>
+    <div style="flex:1">
+      <h3 id="dTitle">รายละเอียด</h3>
+      <p id="dSub"></p>
     </div>
-    <div class="field">
-      <label for="gsToken">รหัสลับ</label>
-      <input type="text" id="gsToken" placeholder="ตรงกับ SECRET ใน Apps Script">
-    </div>
-    <div class="field">
-      <label for="gsSheet">ชื่อชีตปลายทาง</label>
-      <input type="text" id="gsSheet" value="Data">
-    </div>
-  </div>
-  <div class="syncrow">
-    <button class="btn-primary" id="gsRun" style="width:auto">อัปเดตขึ้น Google Sheet</button>
-    <div class="bar"><i id="gsBar"></i></div>
-    <span class="gsmsg" id="gsMsg"></span>
-  </div>
-</section>
+    <button class="iconbtn" id="dClose">✕</button>
+  </header>
+  <div class="body"><dl id="dBody"></dl></div>
+</aside>
 
-<footer>
-  ตารางอ้างอิง (ชื่อ ศ.ต้นทุน · ชื่อสถานะ · ชื่อหมวดสินทรัพย์) ฝังมากับไฟล์นี้แล้ว แก้ไขได้ที่ตัวแปร <code>MASTERS</code> ในซอร์ส · ทุกอย่างประมวลผลในเครื่อง ไม่มีการอัปโหลดข้อมูลออกนอกเครื่อง
-</footer>
-
-</div>
-
+<div class="toasts" id="toasts"></div>
 <input type="file" id="filePicker" style="display:none" multiple accept=".xls,.xlsx,.txt,.csv">
 
 <script>
-/* กรอกครั้งเดียวตรงนี้แล้วไม่ต้องพิมพ์ซ้ำทุกครั้ง */
-const GS_CONFIG = { url: '', token: '', sheet: 'Data' };
-const GS_CHUNK = 4000;   // จำนวนแถวต่อการส่งหนึ่งครั้ง
-
 const MASTERS = {"assetClass": {"Z1010": "สิทธิการใช้ - ที่ดิน", "Z1100": "ที่ดินที่มีแผนใช้ปย.", "Z1200": "**ยกเลิก**", "Z1300": "ที่ดินที่ใช้ประโยชน์", "Z1400": "ปรับปรุงที่ดิน :ไม้", "Z1500": "ปรับปรุงที่ดินคอนกรี", "Z1600": "ปรับปรุงที่ดินเช่า", "Z2010": "สิทธิ-อาคารสปส.", "Z2100": "อาคารดำเนินงาน-ไม้", "Z2110": "อาคารดำเนินงานคอนกรี", "Z2200": "อาคารสำนักงาน-ไม้", "Z2210": "อาคารสำนักงานคอนกรีต", "Z2300": "อาคารที่พัก -ไม้", "Z2310": "อาคารที่พัก -คอนกรีต", "Z2400": "สิ่งปลูกสร้างอื่นๆ", "Z2600": "ปรับปรุงอาคารเช่า", "Z3000": "**ยกเลิก**", "Z3010": "สิทธิ-ระบบผลิตไฟฟ้า", "Z3110": "เครื่องกำเนิดไฟฟ้า", "Z3120": "ระบบเก็บเชื้อเพลิง", "Z3130": "ระบบระบายความร้อน", "Z3140": "สวิตช์เกียร์และอุปกร", "Z3150": "อุปกรณ์อื่นในโรงจักร", "Z3210": "ระบบผลิตไฟฟ้าพลังน้ำ", "Z3220": "เขื่อนและระบบส่งน้ำ", "Z3310": "ระบบผลิตไฟฟ้าพลังแสง", "Z3320": "พลังแสงอาทิตย์ : แบต", "Z3410": "ระบบผลิตไฟฟ้าพลังลม", "Z3420": "ระบบควบคุมพลังลม", "Z4010": "สิทธิ - ระบบไฟฟ้า", "Z4100": "ระบบสายส่ง", "Z4110": "อุปกรณ์ระบบสายส่ง", "Z4200": "ระบบจำหน่าย : แรงสูง", "Z4210": "อุปกรณ์ระบบจำหน่าย", "Z4300": "ระบบจำหน่าย : แรงต่ำ", "Z4400": "ระบบไฟสัญญาณและไฟถนน", "Z4500": "อุปกรณ์สถานีไฟฟ้า", "Z4501": "ระบบควบคุมและป้องกัน", "Z4510": "อุปกรณ์สั่งการจ่ายไฟ", "Z4520": "คอมฯ สั่งการจ่ายไฟ", "Z4600": "หม้อแปลงไฟฟ้า", "Z4700": "มิเตอร์เมคคานิคอล", "Z4710": "มิเตอร์อิเล็กทรอนิกส", "Z4800": "เครื่องอัดประจุไฟฟ้า", "Z5000": "**ยกเลิก**", "Z5010": "สิทธิ-เครื่องตกแต่ง", "Z5100": "เครื่องตกแต่ง สนง.", "Z5200": "อุปกรณ์สำนักงาน", "Z5310": "เมนเฟรมและมินิคอมฯ", "Z5320": "PC และอุปกรณ์คอมฯ", "Z5400": "เครื่องมือคลังพัสดุ", "Z5500": "เครื่องมือโรงซ่อม", "Z5600": "เครื่องมือโรงคอนกรีต", "Z5700": "เครื่องมือเบ็ดเตล็ด", "Z5800": "อุปกรณ์สื่อสาร", "Z5900": "ใยแก้วติดตั้งภายนอก", "Z5910": "ใยแก้วติดตั้งภายใน", "Z6010": "สิทธิ-ยานพาหนะ", "Z6100": "รถยนต์นั่ง", "Z6200": "รถโดยสารเกิน 10 ที่", "Z6300": "รถบรรทุก,เครืองกลหนั", "Z6400": "ยานพาหนะอื่น ๆ", "Z6600": "**ยกเลิก**", "Z7010": "สิทธิ-สท.ไม่มีตัวตน", "Z7100": "โปรแกรมคอมพิวเตอร์", "Z7200": "ลิขสิทธิ์", "Z7300": "สิทธิการเช่า", "Z8100": "ที่ดินที่ใช้ปย.อื่น", "Z8200": "สิ่งปลูกสร้างชปย.อืน", "Z9100": "ส/ท ระหว่างก่อสร้าง", "Z9200": "มิเตอร์รอบันทึกบัญชี", "Z9300": "อุปกรณ์ไฟฟ้ารอบันทึก"}, "status": {"2010": "ติดตั้ง/ใช้งาน", "2020": "ชำรุด", "2030": "สภาพดีแต่ไม่ได้ใช้งาน", "2040": "อยู่ระหว่างขออนุมัติจำหน่าย", "2050": "สูญหาย", "2060": "ให้เช่า", "3010": "จำหน่าย(ขาย)", "3020": "จำหน่าย(แลกเปลี่ยน)", "3030": "จำหน่าย(โอน)", "3040": "จำหน่าย(แปรสภาพ)", "3050": "จำหน่าย(ทำลาย)", "4010": "จำหน่ายเป็นสูญ", "4020": "สิ้นสุดสัญญาเช่า"}, "costCenter": {"I201101001": "คข.กฟจ.นฐ.-ตท.", "I201201001": "คข.กฟส.ดตม.-ตท.", "I202101001": "คข.กฟจ.สพ.-ตท.", "I202201001": "คข.กฟส.บปม.-ตท.", "I202202001": "คข.กฟส.มขล.-ตท.", "I202301001": "คข.กฟส.ดจด.-ตท.", "I202401001": "คข.กฟส.ศปจ.-ตท.", "I202501001": "คข.กฟส.สช.-ตท.", "I203101001": "คข.กฟจ.กจ.-ตท.", "I203201001": "คข.กฟส.ทมง.-ตท.", "I203203001": "คข.กฟส.ตสร.-ตท.", "I203301001": "คข.กฟส.พทน.-ตท.", "I203305001": "คข.กฟส.หกจ.-ตท.", "I203401001": "คข.กฟส.ทยค.-ตท.", "I203501001": "คข.กฟส.ทภ.-ตท.", "I203502001": "คข.กฟส.สขบ.-ตท.", "I203701001": "คข.กฟส.ดมข.-ตท.", "I203801001": "คข.กฟส.ลญ.-ตท.", "I203802001": "คข.กฟส.ศว.-ตท.", "I203803001": "คข.กฟส.ทรน.-ตท.", "I204101001": "คข.กฟจ.สค.-ตท.", "I204401001": "คข.กฟส.บนจ.-ตท.", "I205101001": "คข.กฟส.สพร.-ตท.", "I207101001": "คข.กฟส.อทง.-ตท.", "I207102001": "คข.กฟส.สตง.-ตท.", "I207201001": "คข.กฟส.สพน.-ตท.", "I207202001": "คข.กฟส.ทคก.-ตท.", "I208101001": "คข.กฟส.กทบ.-ตท.", "I209101001": "คข.กฟส.อมน.-ตท.", "I210101001": "คข.กฟส.กพส.-ตท.", "I211101001": "คข.กฟส.นช.-ตท.", "I212101001": "คข.กฟส.บพล.-ตท.", "I212102001": "คข.กฟส.หปร.-ตท.", "I212201001": "คข.กฟส.ลข.-ตท.", "I213101001": "คข.กฟส.ดบ.-ตท.", "I213201001": "คข.กฟส.ดช.-ตท.", "I213301001": "คข.กฟส.นญซ.-ตท.", "I214101001": "คข.กฟส.บลน.-ตท.", "I214102001": "คข.กฟส.บลง.-ตท.", "I215101001": "คข.กฟส.ทมก.-ตท.", "I215201001": "คข.กฟส.ท่าเรือ-ตท.", "I216101001": "คข.กฟส.สค.2(บพว)-ตท.", "I216102001": "คข.กฟส.คลต.-ตท.", "I216103001": "คข.กฟส.กล.-ตท.", "I217101001": "คข.กฟส.คกข.-ตท.", "I218101001": "คข.กฟส.พทฑ.-ตท.", "I300000000": "ผชก.(ก3)/สชก.(ก3)", "I301000000": "กบห.กสข.", "I301000001": "กบห.กสข.-ตท.", "I301000010": "ผสข.กสข.", "I301000020": "ผบก.กสข.", "I301000021": "ผบก.กสข.-ตท.", "I301000030": "ผกม.กสข.", "I301000040": "ผพค.กสข.", "I301000041": "ผพค.กสข.-ตท.", "I301000050": "ผสส.กสข.", "I301010000": "กบห.ฝวบ.", "I301010001": "กบห.ฝวบ.-ตท.", "I301011000": "กบห.กบล.", "I301011001": "กบห.กบล.-ตท.", "I301011010": "ผบธ.กบล.", "I301011011": "ผบธ.กบล.-ตท.", "I301011030": "ผมต.กบล.", "I301011031": "ผมต.กบล.-ตท.", "I301011060": "ผลส.กบล.", "I301011070": "ผผก.กบล.", "I301011090": "ผธท.กบล.", "I301011091": "ผธท.กบล.-ตท.", "I301011100": "ผบว.กบล.", "I301011101": "ผบว.กบล.-ตท.", "I301012000": "กบห.กวว.", "I301012001": "กบห.กวว.-ตท.", "I301012010": "ผปอ.กวว.", "I301012011": "ผปอ.กวว.-ตท.", "I301012050": "ผวร.กวว.", "I301012051": "ผวร.กวว.-ตท.", "I301012060": "ผผร.กวว.", "I301012061": "ผผร.กวว.-ตท.", "I301012070": "ผปร.กวว.", "I301012071": "ผปร.กวว.-ตท.", "I301012080": "ผมท.กวว.", "I301012081": "ผมท.กวว.-ตท.", "I301012090": "ผสอ.กวว.", "I301012091": "ผสอ.กวว.-ตท.", "I301013000": "กบห.กรย.", "I301013001": "กบห.กรย.-ตท.", "I301013010": "ผจส.กรย.", "I301013011": "ผจส.กรย.-ตท.", "I301013020": "ผกร.กรย.", "I301013021": "ผกร.กรย.-ตท.", "I301013030": "ผจร.กรย.", "I301013031": "ผจร.กรย.-ตท.", "I301013040": "ผยธ.กรย.", "I301013041": "ผยธ.กรย.-ตท.", "I301013050": "ผยค.กรย.", "I301013051": "ผยค.กรย.-ตท.", "I301020000": "กบห.ฝสบ.", "I301021000": "กบห.กบฟ.", "I301021020": "ผปว.กบฟ.", "I301021040": "ผบส.กบฟ.", "I301021050": "ผตป.กบฟ.", "I301021070": "ผงป.กบฟ.", "I301021080": "ผซฟ.กบฟ.", "I301021081": "ผซฟ.กบฟ.-ตท.", "I301021090": "ผขฟ.กบฟ.", "I301021100": "ผบน.กบฟ.", "I301023000": "กบห.กดส.", "I301023050": "ผสซ.กดส.", "I301023051": "ผสซ.กดส.-ตท.", "I301023060": "ผคข.กดส.", "I301023070": "ผปด.กดส.", "I301023080": "ผคส.กดส.", "I301023081": "ผคส.กดส.-ตท.", "I301023090": "ผทส.กดส.", "I301023091": "ผทส.กดส.-ตท.", "I301023100": "ผสฟ.กดส.", "I301023101": "ผสฟ.กดส.-ตท.", "I301024000": "กบห.กบพ.", "I301024010": "ผวพ.กบพ.", "I301024020": "ผจห.กบพ.", "I301024030": "ผจร.กบพ.", "I301024040": "ผสห.กบพ.", "I301024050": "ผสร.กบพ.", "I301030000": "กบห.ฝปบ.", "I301030001": "กบห.ฝปบ.-ตท.", "I301031000": "กบห.กปบ.", "I301031001": "กบห.กปบ.-ตท.", "I301031010": "ผคฟ.กปบ.", "I301031011": "ผคฟ.กปบ.-ตท.", "I301031020": "ผวฟ.กปบ.", "I301031021": "ผวฟ.กปบ.-ตท.", "I301031030": "ผจศ.กปบ.", "I301031031": "ผจศ.กปบ.-ตท.", "I301031040": "ผจฟ.1กปบ.", "I301031041": "ผจฟ.1กปบ.-ตท.", "I301031050": "ผจฟ.2กปบ.", "I301031051": "ผจฟ.2กปบ.-ตท.", "I301031060": "ผคร.กปบ.", "I301031061": "ผคร.กปบ.-ตท.", "I301031A00": "สฟฟ.ททร.1ผจฟ.1กปบ.", "I301031A01": "สฟฟ.ททร.1ผจฟ.1กปบ.-ต", "I301031A10": "สฟฟ.สค.5ผจฟ.1กปบ.", "I301031A11": "สฟฟ.สค.5ผจฟ.1กปบ.-ตท", "I301031A20": "สฟฟ.บพว.1ผจฟ.1กปบ.", "I301031A21": "สฟฟ.บพว.ผจฟ.1กปบ.-ตท", "I301031A30": "สฟฟ.สค.2ผจฟ.1กปบ.", "I301031A31": "สฟฟ.สค.2ผจฟ.1กปบ.-ตท", "I301031A40": "สฟฟ.บป.ผจฟ.1กปบ.", "I301031A41": "สฟฟ.บป.ผจฟ.1กปบ.-ตท.", "I301031A50": "สฟฟ.ททร.2(ช)ผจฟ.1กปบ", "I301031A51": "สฟฟ.ททร.2(ช)ผจฟ.1กปบ", "I301031A60": "สฟฟ.กทบ.2ผจฟ.1กปบ.", "I301031A61": "สฟฟ.กทบ.2ผจฟ.1กปบ-ตท", "I301031A70": "สฟฟ.กทบ.1ผจฟ.1กปบ.", "I301031A71": "สฟฟ.กทบ.1ผจฟ.1กปบ-ตท", "I301031A80": "สฟฟ.สค.1ผจฟ.1กปบ.", "I301031A81": "สฟฟ.สค.1ผจฟ.1กปบ.-ตท", "I301031A90": "สฟฟ.สค.7ผจฟ.1กปบ.", "I301031A91": "สฟฟ.สค.7ผจฟ.1กปบ.-ตท", "I301031B00": "สฟฟ.สค.3ผจฟ.1กปบ.", "I301031B01": "สฟฟ.สค.3ผจฟ.1กปบ.-ตท", "I301031B10": "สฟฟ.กทบ.6(ช)ผจฟ.1กปบ", "I301031B11": "สฟฟ.กทบ.6(ช)ผจฟ.1กปบ", "I301031B20": "สฟฟ.ศย.ผจฟ.1กปบ.", "I301031B21": "สฟฟ.ศย.ผจฟ.1กปบ.-ตท.", "I301031B30": "สฟฟ.นช.1ผจฟ.1กปบ.", "I301031B31": "สฟฟ.นช.1ผจฟ.1กปบ.-ตท", "I301031B40": "สฟฟ.นช.2ผจฟ.1กปบ.", "I301031B41": "สฟฟ.นช.2ผจฟ.1กปบ.-ตท", "I301031B50": "สฟฟ.พมฑ.2ผจฟ.1กปบ.", "I301031B51": "สฟฟ.พมฑ.2ผจฟ.1กปบ-ตท", "I301031B60": "สฟฟ.บล.1ผจฟ.1กปบ.", "I301031B61": "สฟฟ.บล.1ผจฟ.1กปบ.-ตท", "I301031B70": "สฟฟ.กพส.ผจฟ.1กปบ.", "I301031B71": "สฟฟ.กพส.ผจฟ.1กปบ.-ตท", "I301031B90": "สฟฟ.สพน.1ผจฟ.1กปบ.", "I301031B91": "สฟฟ.สพน.ผจฟ.1กปบ-ตท", "I301031C00": "สฟฟ.ดต.ผจฟ.1กปบ.", "I301031C01": "สฟฟ.ดต.ผจฟ.1กปบ.-ตท.", "I301031C10": "สฟฟ.สพ.1ผจฟ.1กปบ.", "I301031C11": "สฟฟ.สพ.ผจฟ.1กปบ.-ตท.", "I301031C20": "สฟฟ.อท.ผจฟ.1กปบ.", "I301031C21": "สฟฟ.อท.ผจฟ.1กปบ.-ตท.", "I301031C30": "สฟฟ.ดจ.ผจฟ.1กปบ.", "I301031C31": "สฟฟ.ดจ.ผจฟ.1กปบ.-ตท.", "I301031C40": "สฟฟ.ศปจ.(ช)ผจฟ.1กปบ.", "I301031C41": "สฟฟ.ศปจ.(ช)ผจฟ.1กปบ.", "I301031C50": "สฟฟ.บปม.ผจฟ.1กปบ.", "I301031C51": "สฟฟ.บปม.ผจฟ.1กปบ.-ตท", "I301031C60": "สฟฟ.ดบ.ผจฟ.1กปบ.", "I301031C61": "สฟฟ.ดบ.ผจฟ.1กปบ.-ตท.", "I301031C70": "สฟฟ.ดช.ผจฟ.1กปบ.", "I301031C71": "สฟฟ.ดช.ผจฟ.1กปบ.-ตท.", "I301031C80": "สฟฟ.สค.10(ช)ผจฟ.1กปบ", "I301031C81": "สฟฟ.สค.10(ช)ผจฟ.1กปบ", "I301031C90": "สฟฟ.ลข.(ช)ผจฟ.1กปบ.", "I301031C91": "สฟฟ.ลข.(ช)ผจฟ.1กปบ.", "I301031D00": "สฟฟ.สพน.2ผจฟ.1กปบ.", "I301031D01": "สฟฟ.สพน.2ผจฟ.1กปบ.", "I301031D10": "สฟฟ.สค.9ผจฟ.1กปบ.", "I301031D11": "สฟฟ.สค.9ผจฟ.1กปบ.-ตท", "I301031D20": "สฟฟ.สค.12(ช)ผจฟ.1กปบ", "I301031D21": "สฟฟ.สค.12(ช)ผจฟ.1กปบ", "I301031D30": "สฟฟ.บล.2(ช)ผจฟ.1กปบ.", "I301031D31": "สฟฟ.บล.2(ช)ผจฟ.1กปบ.", "I301031D40": "สฟฟ.ลข.ผจฟ.1กปบ.", "I301031D41": "สฟฟ.ลข.ผจฟ.1กปบ-ตท.", "I301031D50": "สฟฟ.บล.3(ช)ผจฟ.1กปบ.", "I301031D51": "สฟฟ.บล.3(ช)ผจฟ.1กปบ.", "I301031D60": "สฟฟ.อท.2(ช)ผจฟ.1กปบ.", "I301031D61": "สฟฟ.อท.2(ช)ผจฟ.1กปบ.", "I301031D70": "สฟฟ.สพ.2ผจฟ.1กปบ.", "I301031D71": "สฟฟ.สพ.2ผจฟ.1กปบ.-ตท", "I301031D80": "สฟฟ.สค.10ผจฟ.1กปบ.", "I301031D81": "สฟฟ.สค.10ผจฟ.1กปบ.", "I301031D90": "สฟฟ.สพร.5(ช)ผจฟ.1กปบ", "I301031D91": "สฟฟ.สพร.5(ช)ผจฟ.1กปบ", "I301031E00": "สฟฟ.บพว.2ผจฟ.1กปบ.", "I301031E01": "สฟฟ.บพว.2ผจฟ.1กปบ.", "I301031E10": "สฟฟ.สค.16(ช)ผจฟ.1กปบ", "I301031E11": "สฟฟ.สค.16(ช)ผจฟ.1กปบ", "I301031E20": "สฟฟ.สช.ผจฟ.1กปบ.", "I301031E21": "สฟฟ.สช.ผจฟ.1กปบ.", "I301031E30": "สฟฟ.พมฑ.3ผจฟ.1กปบ.", "I301031E31": "สฟฟ.พมฑ.3ผจฟ.1กปบ-ตท", "I301031E40": "สฟฟ.กทบ.6ผจฟ.1กปบ.", "I301031E41": "สฟฟ.กทบ.6ผจฟ.1กปบ.", "I301031E50": "สฟฟ.สค.16ผจฟ.1กปบ.", "I301031E51": "สฟฟ.สค.16ผจฟ.1กปบ.", "I301031E60": "สฟฟ.สค.17(ช)ผจฟ.1กปบ", "I301031E61": "สฟฟ.สค.17(ช)ผจฟ.1กปบ", "I301031N00": "สฟฟ.สค.4ผจฟ.2กปบ.", "I301031N01": "สฟฟ.สค.4ผจฟ.2กปบ.-ตท", "I301031N10": "สฟฟ.อช.1ผจฟ.2กปบ.", "I301031N11": "สฟฟ.อช.1ผจฟ.2กปบ.-ตท", "I301031N30": "สฟฟ.สค.8(ช)ผจฟ.2กปบ.", "I301031N31": "สฟฟ.สค.8(ช)ผจฟ.2กปบ.", "I301031N40": "สฟฟ.สค.6ผจฟ.2กปบ.", "I301031N41": "สฟฟ.สค.6ผจฟ.2กปบ.-ตท", "I301031N60": "สฟฟ.สพร.1ผจฟ.2กปบ.", "I301031N61": "สฟฟ.สพร.1ผจฟ.2กปบ-ตท", "I301031N70": "สฟฟ.อมน.2ผจฟ.2กปบ.", "I301031N71": "สฟฟ.อมน.2ผจฟ.2กปบ-ตท", "I301031N90": "สฟฟ.อมน.1ผจฟ.2กปบ.", "I301031N91": "สฟฟ.อมน.1ผจฟ.2กปบ-ตท", "I301031O00": "สฟฟ.กทบ.4ผจฟ.2กปบ.", "I301031O01": "สฟฟ.กทบ.4ผจฟ.2กปบ-ตท", "I301031O20": "สฟฟ.อญ.1ผจฟ.2กปบ.", "I301031O21": "สฟฟ.อญ.1ผจฟ.2กปบ.-ตท", "I301031O30": "สฟฟ.อญ.2ผจฟ.2กปบ.", "I301031O31": "สฟฟ.อญ.2ผจฟ.2กปบ.-ตท", "I301031O40": "สฟฟ.อญ.3ผจฟ.2กปบ.", "I301031O41": "สฟฟ.อญ.3ผจฟ.2กปบ.-ตท", "I301031O60": "สฟฟ.สพร.2ผจฟ.2กปบ.", "I301031O61": "สฟฟ.สพร.2ผจฟ.2กปบ-ตท", "I301031O70": "สฟฟ.นฐ.1ผจฟ.2กปบ.", "I301031O71": "สฟฟ.นฐ.1ผจฟ.2กปบ.-ตท", "I301031O80": "สฟฟ.นฐ.2ผจฟ.2กปบ.", "I301031O81": "สฟฟ.นฐ.2ผจฟ.2กปบ.-ตท", "I301031O90": "สฟฟ.บปง.1ผจฟ.2กปบ.", "I301031O91": "สฟฟ.บปง.1ผจฟ.2กปบ-ตท", "I301031P10": "สฟฟ.ทมก.1ผจฟ.2กปบ.", "I301031P11": "สฟฟ.ทมก.1ผจฟ.2กปบ-ตท", "I301031P30": "สฟฟ.กจ.1ผจฟ.2กปบ.", "I301031P31": "สฟฟ.กจ.1ผจฟ.2กปบ.-ตท", "I301031P40": "สฟฟ.ทม.1ผจฟ.2กปบ.", "I301031P41": "สฟฟ.ทม.1ผจฟ.2กปบ.-ตท", "I301031P50": "สฟฟ.พทน.ผจฟ.2กปบ.", "I301031P51": "สฟฟ.พทน.ผจฟ.2กปบ.-ตท", "I301031P60": "สฟฟ.บพ.ผจฟ.2กปบ.", "I301031P61": "สฟฟ.บพ.ผจฟ.2กปบ.-ตท.", "I301031P70": "สฟฟ.ทย.ผจฟ.2กปบ.", "I301031P71": "สฟฟ.ทย.ผจฟ.2กปบ.-ตท.", "I301031P80": "สฟฟ.กจ2.ผจฟ.2กปบ.", "I301031P81": "สฟฟ.กจ2.ผจฟ.2กปบ.-ตท", "I301031P90": "สฟฟ.ดมข.ผจฟ.2กปบ.", "I301031P91": "สฟฟ.ดมข.ผจฟ.2กปบ.-ตท", "I301031Q00": "สฟฟ.ข.วชร.(ช)ผจฟ.2", "I301031Q01": "สฟฟ.ข.วชร.(ช)ผจฟ.2", "I301031Q10": "สฟฟ.ข.ททน.(ช)ผจฟ.2", "I301031Q11": "สฟฟ.ข.ททน.(ช)ผจฟ.2", "I301031Q20": "สฟฟ.ศนค.(ช)ผจฟ.2กปบ.", "I301031Q21": "สฟฟ.ศนค.(ช)ผจฟ.2กปบ.", "I301031Q30": "สฟฟ.อมน.4ผจฟ.2กปบ.", "I301031Q31": "สฟฟ.อมน.4ผจฟ.2กปบ.", "I301031Q50": "สฟฟ.สพร.3ผจฟ.1กปบ.", "I301031Q51": "สฟฟ.สพร.3ผจฟ.1กปบ-ตท", "I301031Q70": "สฟฟ.สพร.4ผจฟ.2กปบ.", "I301031Q71": "สฟฟ.สพร.4ผจฟ.2กปบ-ตท", "I301031Q90": "สฟฟ.สสค.ผจฟ.2กปบ.", "I301031Q91": "สฟฟ.สสค.ผจฟ.2กปบ.", "I301031R00": "สฟฟ.นฐ.3ผจฟ.2กปบ.", "I301031R01": "สฟฟ.นฐ.3ผจฟ.2กปบ.", "I301031R10": "สฟฟ.กทบ.5ผจฟ.2กปบ.", "I301031R11": "สฟฟ.กทบ.5ผจฟ.2กปบ", "I301031R30": "สฟฟ.อช.2ผจฟ.2กปบ.", "I301031R31": "สฟฟ.อช.2ผจฟ.2กปบ.-ตท", "I301031R40": "สฟฟ.ทม.2(ช)ผจฟ.2กปบ.", "I301031R41": "สฟฟ.ทม.2(ช)ผจฟ.2กปบ.", "I301031R50": "สฟฟ.บพ.2(ช)ผจฟ.2กปบ.", "I301031R51": "สฟฟ.บพ.2(ช)ผจฟ.2กปบ.", "I301031R60": "สฟฟ.อมน.3ผจฟ.2กปบ.", "I301031R61": "สฟฟ.อมน.3ผจฟ.2กปบ.", "I301031R70": "สฟฟ.กจ4.ผจฟ.2กปบ.", "I301031R71": "สฟฟ.กจ4.ผจฟ.2กปบ.-ตท", "I301031R90": "สฟฟ.กจ3.ผจฟ.2กปบ.", "I301031R91": "สฟฟ.กจ3.ผจฟ.2กปบ.-ตท", "I301031S00": "สฟฟ.อญ.4ผจฟ.2กปบ.", "I301031S01": "สฟฟ.อญ.4ผจฟ.2กปบ.-ตท", "I301031S10": "สฟฟ.สค.11ผจฟ.2กปบ.", "I301031S11": "สฟฟ.สค.11ผจฟ.2กปบ.", "I301031S20": "สฟฟ.ทมก.2ผจฟ.2กปบ.", "I301031S21": "สฟฟ.ทมก.2ผจฟ.2กปบ-ตท", "I301031S30": "สฟฟ.ทม.2ผจฟ.2กปบ.", "I301031S31": "สฟฟ.ทม.2ผจฟ.2กปบ.-ตท", "I301031S40": "สฟฟ.นฐ.4(ช)ผจฟ.2กปบ.", "I301031S41": "สฟฟ.นฐ.4(ช)ผจฟ.2กปบ.", "I301031S50": "สฟฟ.อมน.5ผจฟ.2กปบ.", "I301031S51": "สฟฟ.อมน.5ผจฟ.2กปบ.", "I301031S60": "สฟฟ.สค.15ผจฟ.2กปบ.", "I301031S61": "สฟฟ.สค.15ผจฟ.2กปบ.", "I301031S70": "สฟฟ.อมน.1(ช)ผจฟ.2กปบ", "I301031S71": "สฟฟ.อมน.1(ช)ผจฟ.2กปบ", "I301031S80": "สฟฟ.สค.14(ช)ผจฟ.2กปบ", "I301032000": "กบห.กบษ.", "I301032001": "กบห.กบษ.-ตท.", "I301032060": "ผฮล.กบษ.", "I301032061": "ผฮล.กบษ.-ตท.", "I301032070": "ผบอ.กบษ.", "I301032071": "ผบอ.กบษ.-ตท.", "I301032080": "ผบส.กบษ.", "I301032081": "ผบส.กบษ.-ตท.", "I301032090": "ผบร.กบษ.", "I301032091": "ผบร.กบษ.-ตท.", "I301032100": "ผมร.กบษ.", "I301032101": "ผมร.กบษ.-ตท.", "I301034000": "กบห.กสฟ.", "I301034001": "กบห.กสฟ.-ตท.", "I301034010": "ผสก.กสฟ.", "I301034011": "ผสก.กสฟ.-ตท.", "I301034020": "ผรผ.กสฟ.", "I301034021": "ผรผ.กสฟ.-ตท.", "I301034030": "ผปค.กสฟ.", "I301034031": "ผปค.กสฟ.-ตท.", "I301034040": "ผอส.กสฟ.", "I301034041": "ผอส.กสฟ.-ตท.", "I301034050": "ผมก.กสฟ.", "I301034051": "ผมก.กสฟ.-ตท.", "I301101000": "กบห.กฟจ.นฐ.", "I301101001": "กบห.กฟจ.นฐ.-ตท.", "I301101010": "ผบส.กฟจ.นฐ.", "I301101011": "ผบส.กฟจ.นฐ.-ตท.", "I301101020": "ผมต.กฟจ.นฐ.", "I301101021": "ผมต.กฟจ.นฐ.-ตท.", "I301101030": "ผปบ.กฟจ.นฐ.", "I301101031": "ผปบ.กฟจ.นฐ.-ตท.", "I301101040": "ผกส.กฟจ.นฐ.", "I301101041": "ผกส.กฟจ.นฐ.-ตท.", "I301101050": "ผบร.กฟจ.นฐ.", "I301101052": "ผบร.กฟจ.นฐ.-ขาย", "I301101070": "ผสน.กฟจ.นฐ.", "I301201000": "กบห.กฟส.ดตม.", "I301201001": "กบห.กฟส.ดตม.-ตท.", "I301201010": "ผปร.กฟส.ดตม.", "I301201011": "ผปร.กฟส.ดตม.-ตท.", "I301201020": "ผบค.กฟส.ดตม.", "I301201021": "ผบค.กฟส.ดตม.-ตท.", "I301201022": "ผบค.กฟส.ดตม.-ขาย", "I301201030": "ผบง.กฟส.ดตม.", "I302101000": "กบห.กฟจ.สพ.", "I302101001": "กบห.กฟจ.สพ.-ตท.", "I302101010": "ผบส.กฟจ.สพ.", "I302101011": "ผบส.กฟจ.สพ.-ตท.", "I302101020": "ผมต.กฟจ.สพ.", "I302101021": "ผมต.กฟจ.สพ.-ตท.", "I302101030": "ผปบ.กฟจ.สพ.", "I302101031": "ผปบ.กฟจ.สพ.-ตท.", "I302101040": "ผกส.กฟจ.สพ.", "I302101041": "ผกส.กฟจ.สพ.-ตท.", "I302101050": "ผบร.กฟจ.สพ.", "I302101052": "ผบร.กฟจ.สพ.-ขาย", "I302101060": "ผคพ.กฟจ.สพ.", "I302101070": "ผสน.กฟจ.สพ.", "I302201000": "กบห.กฟส.บปม.", "I302201001": "กบห.กฟส.บปม.-ตท.", "I302201010": "ผปร.กฟส.บปม.", "I302201011": "ผปร.กฟส.บปม.-ตท.", "I302201020": "ผบค.กฟส.บปม.", "I302201021": "ผบค.กฟส.บปม.-ตท.", "I302201030": "ผบง.กฟส.บปม.", "I302201032": "ผบง.กฟส.บปม.-ขาย", "I302202000": "กฟส.มขล.", "I302202001": "กฟส.มขล.-ตท.", "I302301000": "กบห.กฟส.ดจด.", "I302301001": "กบห.กฟส.ดจด.-ตท.", "I302301010": "ผปร.กฟส.ดจด.", "I302301011": "ผปร.กฟส.ดจด.-ตท.", "I302301020": "ผบค.กฟส.ดจด.", "I302301021": "ผบค.กฟส.ดจด.-ตท.", "I302301030": "ผบง.กฟส.ดจด.", "I302401000": "กบห.กฟส.ศปจ.", "I302401001": "กบห.กฟส.ศปจ.-ตท.", "I302401010": "ผปร.กฟส.ศปจ.", "I302401011": "ผปร.กฟส.ศปจ.-ตท.", "I302401020": "ผบค.กฟส.ศปจ.", "I302401021": "ผบค.กฟส.ศปจ.-ตท.", "I302401022": "ผบค.กฟส.ศปจ.-ขาย", "I302401030": "ผบง.กฟส.ศปจ.", "I302501000": "กบห.กฟส.สช.", "I302501001": "กบห.กฟส.สช.-ตท.", "I302501010": "ผปร.กฟส.สช.", "I302501011": "ผปร.กฟส.สช.-ตท.", "I302501020": "ผบค.กฟส.สช.", "I302501021": "ผบค.กฟส.สช.-ตท.", "I302501022": "ผบค.กฟส.สช.-ขาย", "I302501030": "ผบง.กฟส.สช.", "I303101000": "กบห.กฟจ.กจ.", "I303101001": "กบห.กฟจ.กจ.-ตท.", "I303101010": "ผบส.กฟจ.กจ.", "I303101011": "ผบส.กฟจ.กจ.-ตท.", "I303101020": "ผมต.กฟจ.กจ.", "I303101021": "ผมต.กฟจ.กจ.-ตท.", "I303101030": "ผปบ.กฟจ.กจ.", "I303101031": "ผปบ.กฟจ.กจ.-ตท.", "I303101040": "ผกส.กฟจ.กจ.", "I303101041": "ผกส.กฟจ.กจ.-ตท.", "I303101050": "ผบร.กฟจ.กจ.", "I303101052": "ผบร.กฟจ.กจ.-ขาย", "I303101060": "ผคพ.กฟจ.กจ.", "I303101070": "ผสน.กฟจ.กจ.", "I303201000": "กบห.กฟส.ทมง.", "I303201001": "กบห.กฟส.ทมง.-ตท.", "I303201010": "ผปร.กฟส.ทมง.", "I303201011": "ผปร.กฟส.ทมง.-ตท.", "I303201020": "ผบค.กฟส.ทมง.", "I303201021": "ผบค.กฟส.ทมง.-ตท.", "I303201022": "ผบค.กฟส.ทมง.-ขาย", "I303201030": "ผบง.กฟส.ทมง.", "I303203000": "กฟส.ตสร.", "I303203001": "กฟส.ตสร.-ตท.", "I303203002": "กฟส.ตสร.-ขาย", "I303301000": "กบห.กฟส.พทน.", "I303301001": "กบห.กฟส.พทน.-ตท.", "I303301010": "ผปร.กฟส.พทน.", "I303301011": "ผปร.กฟส.พทน.-ตท.", "I303301020": "ผบค.กฟส.พทน.", "I303301021": "ผบค.กฟส.พทน.-ตท.", "I303301030": "ผบง.กฟส.พทน.", "I303305000": "กฟส.หกจ.", "I303305001": "กฟส.หกจ.-ตท.", "I303401000": "กบห.กฟส.ทยค.", "I303401001": "กบห.กฟส.ทยค.-ตท.", "I303401010": "ผปร.กฟส.ทยค.", "I303401011": "ผปร.กฟส.ทยค.-ตท.", "I303401020": "ผบค.กฟส.ทยค.", "I303401021": "ผบค.กฟส.ทยค.-ตท.", "I303401030": "ผบง.กฟส.ทยค.", "I303501000": "กบห.กฟส.ทภ.", "I303501001": "กบห.กฟส.ทภ.-ตท.", "I303501010": "ผปร.กฟส.ทภ.", "I303501011": "ผปร.กฟส.ทภ.-ตท.", "I303501020": "ผบค.กฟส.ทภ.", "I303501021": "ผบค.กฟส.ทภ.-ตท.", "I303501022": "ผบค.กฟส.ทภ.-ขาย", "I303501030": "ผบง.กฟส.ทภ.", "I303501032": "ผบง.กฟส.ทภ.-ขาย", "I303502000": "กฟส.สขบ.", "I303502001": "กฟส.สขบ.-ตท.", "I303502A00": "รฟฟ.สขบ.กฟส.สขบ.", "I303502A01": "รฟฟ.ด.สขบ.กฟส.สขบ.", "I303701000": "กบห.กฟส.ดมข.", "I303701001": "กบห.กฟส.ดมข.-ตท.", "I303701010": "ผปร.กฟส.ดมข.", "I303701011": "ผปร.กฟส.ดมข.-ตท.", "I303701020": "ผบค.กฟส.ดมข.", "I303701021": "ผบค.กฟส.ดมข.-ตท.", "I303701030": "ผบง.กฟส.ดมข.", "I303801000": "กบห.กฟส.ลญ.", "I303801001": "กบห.กฟส.ลญ.-ตท.", "I303801010": "ผปร.กฟส.ลญ.", "I303801011": "ผปร.กฟส.ลญ.-ตท.", "I303801020": "ผบค.กฟส.ลญ.", "I303801021": "ผบค.กฟส.ลญ.-ตท.", "I303801030": "ผบง.กฟส.ลญ.", "I303801032": "ผบง.กฟส.ลญ.-ขาย", "I303802000": "กฟส.ศว.", "I303802001": "กฟส.ศว.-ตท.", "I303803000": "กฟส.ทรน.", "I303803001": "กฟส.ทรน.-ตท.", "I304101000": "กบห.กฟจ.สค.", "I304101001": "กบห.กฟจ.สค.-ตท.", "I304101010": "ผบส.กฟจ.สค.", "I304101011": "ผบส.กฟจ.สค.-ตท.", "I304101020": "ผมต.กฟจ.สค.", "I304101021": "ผมต.กฟจ.สค.-ตท.", "I304101030": "ผปบ.กฟจ.สค.", "I304101031": "ผปบ.กฟจ.สค.-ตท.", "I304101040": "ผกส.กฟจ.สค.", "I304101041": "ผกส.กฟจ.สค.-ตท.", "I304101060": "ผบร.กฟจ.สค.", "I304101062": "ผบร.กฟจ.สค.-ขาย", "I304101070": "ผคพ.กฟจ.สค.", "I304101080": "ผสน.กฟจ.สค.", "I304401000": "กบห.กฟส.บนจ.", "I304401001": "กบห.กฟส.บนจ.-ตท.", "I304401010": "ผบค.กฟส.บนจ.", "I304401011": "ผบค.กฟส.บนจ.-ตท.", "I304401012": "ผบค.กฟส.บนจ.-ขาย", "I304401020": "ผปร.กฟส.บนจ.", "I304401021": "ผปร.กฟส.บนจ.-ตท.", "I304401030": "ผบง.กฟส.บนจ.", "I305101000": "กบห.กฟส.สพร.", "I305101001": "กบห.กฟส.สพร.-ตท.", "I305101010": "ผบส.กฟส.สพร.", "I305101011": "ผบส.กฟส.สพร.-ตท.", "I305101020": "ผมต.กฟส.สพร.", "I305101021": "ผมต.กฟส.สพร.-ตท.", "I305101030": "ผปบ.กฟส.สพร.", "I305101031": "ผปบ.กฟส.สพร.-ตท.", "I305101040": "ผกส.กฟส.สพร.", "I305101041": "ผกส.กฟส.สพร.-ตท.", "I305101060": "ผบร.กฟส.สพร.", "I305101062": "ผบร.กฟส.สพร.-ขาย", "I305101070": "ผคพ.กฟส.สพร.", "I305101080": "ผสน.กฟส.สพร.", "I307101000": "กบห.กฟส.อทง.", "I307101001": "กบห.กฟส.อทง.-ตท.", "I307101010": "ผบส.กฟส.อทง.", "I307101011": "ผบส.กฟส.อทง.-ตท.", "I307101020": "ผมต.กฟส.อทง.", "I307101021": "ผมต.กฟส.อทง.-ตท.", "I307101030": "ผปบ.กฟส.อทง.", "I307101031": "ผปบ.กฟส.อทง.-ตท.", "I307101040": "ผกส.กฟส.อทง.", "I307101041": "ผกส.กฟส.อทง.-ตท.", "I307101050": "ผบร.กฟส.อทง.", "I307101052": "ผบร.กฟส.อทง.-ขาย", "I307101070": "ผสน.กฟส.อทง.", "I307102000": "กฟส.สตง.", "I307102001": "กฟส.สตง.-ตท.", "I307201000": "กบห.กฟส.สพน.", "I307201001": "กบห.กฟส.สพน.-ตท.", "I307201010": "ผปร.กฟส.สพน.", "I307201011": "ผปร.กฟส.สพน.-ตท.", "I307201020": "ผบค.กฟส.สพน.", "I307201021": "ผบค.กฟส.สพน.-ตท.", "I307201022": "ผบค.กฟส.สพน.-ขาย", "I307201030": "ผบง.กฟส.สพน.", "I307201032": "ผบง.กฟส.สพน.-ขาย", "I307202000": "กฟส.ทคก.", "I307202001": "กฟส.ทคก.-ตท.", "I308101000": "กบห.กฟส.กทบ.", "I308101001": "กบห.กฟส.กทบ.-ตท.", "I308101010": "ผบส.กฟส.กทบ.", "I308101011": "ผบส.กฟส.กทบ.-ตท.", "I308101020": "ผมต.กฟส.กทบ.", "I308101021": "ผมต.กฟส.กทบ.-ตท.", "I308101030": "ผปบ.กฟส.กทบ.", "I308101031": "ผปบ.กฟส.กทบ.-ตท.", "I308101040": "ผกส.กฟส.กทบ.", "I308101041": "ผกส.กฟส.กทบ.-ตท.", "I308101060": "ผบร.กฟส.กทบ.", "I308101062": "ผบร.กฟส.กทบ.-ขาย", "I308101080": "ผสน.กฟส.กทบ.", "I309101000": "กบห.กฟส.อมน.", "I309101001": "กบห.กฟส.อมน.-ตท.", "I309101010": "ผบส.กฟส.อมน.", "I309101011": "ผบส.กฟส.อมน.-ตท.", "I309101020": "ผมต.กฟส.อมน.", "I309101021": "ผมต.กฟส.อมน.-ตท.", "I309101030": "ผปบ.กฟส.อมน.", "I309101031": "ผปบ.กฟส.อมน.-ตท.", "I309101040": "ผกส.กฟส.อมน.", "I309101041": "ผกส.กฟส.อมน.-ตท.", "I309101060": "ผบร.กฟส.อมน.", "I309101080": "ผสน.กฟส.อมน.", "I310101000": "กบห.กฟส.กพส.", "I310101001": "กบห.กฟส.กพส.-ตท.", "I310101010": "ผบส.กฟส.กพส.", "I310101011": "ผบส.กฟส.กพส.-ตท.", "I310101020": "ผมต.กฟส.กพส.", "I310101021": "ผมต.กฟส.กพส.-ตท.", "I310101030": "ผปบ.กฟส.กพส.", "I310101031": "ผปบ.กฟส.กพส.-ตท.", "I310101040": "ผกส.กฟส.กพส.", "I310101041": "ผกส.กฟส.กพส.-ตท.", "I310101050": "ผบร.กฟส.กพส.", "I310101052": "ผบร.กฟส.กพส.-ขาย", "I310101070": "ผสน.กฟส.กพส.", "I311101000": "กบห.กฟส.นช.", "I311101001": "กบห.กฟส.นช.-ตท.", "I311101010": "ผบส.กฟส.นช.", "I311101011": "ผบส.กฟส.นช.-ตท.", "I311101020": "ผมต.กฟส.นช.", "I311101021": "ผมต.กฟส.นช.-ตท.", "I311101030": "ผปบ.กฟส.นช.", "I311101031": "ผปบ.กฟส.นช.-ตท.", "I311101040": "ผกส.กฟส.นช.", "I311101041": "ผกส.กฟส.นช.-ตท.", "I311101050": "ผบร.กฟส.นช.", "I311101052": "ผบร.กฟส.นช.-ขาย", "I311101060": "ผคพ.กฟส.นช.", "I311101070": "ผสน.กฟส.นช.", "I312101000": "กบห.กฟส.บพล.", "I312101001": "กบห.กฟส.บพล.-ตท.", "I312101010": "ผบส.กฟส.บพล.", "I312101011": "ผบส.กฟส.บพล.-ตท.", "I312101020": "ผมต.กฟส.บพล.", "I312101021": "ผมต.กฟส.บพล.-ตท.", "I312101030": "ผปบ.กฟส.บพล.", "I312101031": "ผปบ.กฟส.บพล.-ตท.", "I312101040": "ผกส.กฟส.บพล.", "I312101041": "ผกส.กฟส.บพล.-ตท.", "I312101050": "ผบร.กฟส.บพล.", "I312101052": "ผบร.กฟส.บพล.-ขาย", "I312101070": "ผสน.กฟส.บพล.", "I312102000": "กฟส.หปร.", "I312102001": "กฟส.หปร.-ตท.", "I312102002": "กฟส.หปร.-ขาย", "I312201000": "กบห.กฟส.ลข.", "I312201001": "กบห.กฟส.ลข.-ตท.", "I312201010": "ผปร.กฟส.ลข.", "I312201011": "ผปร.กฟส.ลข.-ตท.", "I312201020": "ผบค.กฟส.ลข.", "I312201021": "ผบค.กฟส.ลข.-ตท.", "I312201022": "ผบค.กฟส.ลข.-ขาย", "I312201030": "ผบง.กฟส.ลข.", "I313101000": "กบห.กฟส.ดบ.", "I313101001": "กบห.กฟส.ดบ.-ตท.", "I313101010": "ผบส.กฟส.ดบ.", "I313101011": "ผบส.กฟส.ดบ.-ตท.", "I313101020": "ผมต.กฟส.ดบ.", "I313101021": "ผมต.กฟส.ดบ.-ตท.", "I313101030": "ผปบ.กฟส.ดบ.", "I313101031": "ผปบ.กฟส.ดบ.-ตท.", "I313101040": "ผกส.กฟส.ดบ.", "I313101041": "ผกส.กฟส.ดบ.-ตท.", "I313101050": "ผบร.กฟส.ดบ.", "I313101052": "ผบร.กฟส.ดบ.-ขาย", "I313101070": "ผสน.กฟส.ดบ.", "I313201000": "กบห.กฟส.ดช.", "I313201001": "กบห.กฟส.ดช.-ตท.", "I313201010": "ผปร.กฟส.ดช.", "I313201011": "ผปร.กฟส.ดช.-ตท.", "I313201020": "ผบค.กฟส.ดช.", "I313201021": "ผบค.กฟส.ดช.-ตท.", "I313201030": "ผบง.กฟส.ดช.", "I313201032": "ผบง.กฟส.ดช.-ขาย", "I313301000": "กบห.กฟส.นญซ.", "I313301001": "กบห.กฟส.นญซ.-ตท.", "I313301010": "ผปร.กฟส.นญซ.", "I313301011": "ผปร.กฟส.นญซ.-ตท.", "I313301020": "ผบค.กฟส.นญซ.", "I313301021": "ผบค.กฟส.นญซ.-ตท.", "I313301022": "ผบค.กฟส.นญซ.-ขาย", "I313301030": "ผบง.กฟส.นญซ.", "I314101000": "กบห.กฟส.บลน.", "I314101001": "กบห.กฟส.บลน.-ตท.", "I314101010": "ผบส.กฟส.บลน.", "I314101011": "ผบส.กฟส.บลน.-ตท.", "I314101020": "ผมต.กฟส.บลน.", "I314101021": "ผมต.กฟส.บลน.-ตท.", "I314101030": "ผปบ.กฟส.บลน.", "I314101031": "ผปบ.กฟส.บลน.-ตท.", "I314101040": "ผกส.กฟส.บลน.", "I314101041": "ผกส.กฟส.บลน.-ตท.", "I314101050": "ผบร.กฟส.บลน.", "I314101052": "ผบร.กฟส.บลน.-ขาย", "I314101070": "ผสน.กฟส.บลน.", "I314102000": "กฟส.บลง.", "I314102001": "กฟส.บลง.-ตท.", "I314102002": "กฟส.บลง.-ขาย", "I315101000": "กบห.กฟส.ทมก.", "I315101001": "กบห.กฟส.ทมก.-ตท.", "I315101010": "ผบส.กฟส.ทมก.", "I315101011": "ผบส.กฟส.ทมก.-ตท.", "I315101020": "ผมต.กฟส.ทมก.", "I315101021": "ผมต.กฟส.ทมก.-ตท.", "I315101030": "ผปบ.กฟส.ทมก.", "I315101031": "ผปบ.กฟส.ทมก.-ตท.", "I315101040": "ผกส.กฟส.ทมก.", "I315101041": "ผกส.กฟส.ทมก.-ตท.", "I315101050": "ผบร.กฟส.ทมก.", "I315101052": "ผบร.กฟส.ทมก.-ขาย", "I315101070": "ผสน.กฟส.ทมก.", "I315101080": "ผคพ.กฟส.ทมก.", "I315201000": "กบห.กฟส.ท่าเรือ", "I315201001": "กบห.กฟส.ท่าเรือ-ตท.", "I315201010": "ผปร.กฟส.ท่าเรือ", "I315201011": "ผปร.กฟส.ท่าเรือ-ตท.", "I315201020": "ผบค.กฟส.ท่าเรือ", "I315201021": "ผบค.กฟส.ท่าเรือ-ตท.", "I315201030": "ผบง.กฟส.ท่าเรือ", "I315201032": "ผบง.กฟส.ท่าเรือ-ขาย", "I316101000": "กบห.กฟส.สค.2(บพว)", "I316101001": "กบห.กฟส.สค.2(บพว)-ตท", "I316101010": "ผบส.กฟส.สค.2(บพว)", "I316101011": "ผบส.กฟส.สค.2(บพว)-ตท", "I316101020": "ผมต.กฟส.สค.2(บพว)", "I316101021": "ผมต.กฟส.สค.2(บพว)-ตท", "I316101030": "ผปบ.กฟส.สค.2(บพว)", "I316101031": "ผปบ.กฟส.สค.2(บพว)-ตท", "I316101040": "ผกส.กฟส.สค.2(บพว)", "I316101041": "ผกส.กฟส.สค.2(บพว)-ตท", "I316101050": "ผบร.กฟส.สค.2(บพว)", "I316101052": "ผบร.กฟส.สค.2(บพว)-ขา", "I316101070": "ผสน.กฟส.สค.2(บพว)", "I316102000": "กฟส.คลต.", "I316102001": "กฟส.คลต.-ตท.", "I316103000": "กฟส.กล.", "I316103001": "กฟส.กล.-ตท.", "I317101000": "กบห.กฟส.คกข.", "I317101001": "กบห.กฟส.คกข.-ตท.", "I317101010": "ผบส.กฟส.คกข.", "I317101011": "ผบส.กฟส.คกข.-ตท.", "I317101020": "ผมต.กฟส.คกข.", "I317101021": "ผมต.กฟส.คกข.-ตท.", "I317101022": "ผมต.กฟส.คกข.-ขาย", "I317101030": "ผปบ.กฟส.คกข.", "I317101031": "ผปบ.กฟส.คกข.-ตท.", "I317101040": "ผกส.กฟส.คกข.", "I317101041": "ผกส.กฟส.คกข.-ตท.", "I317101050": "ผบร.กฟส.คกข.", "I317101070": "ผสน.กฟส.คกข.", "I318101000": "กบห.กฟส.พทฑ.", "I318101001": "กบห.กฟส.พทฑ.-ตท.", "I318101010": "ผบส.กฟส.พทฑ.", "I318101011": "ผบส.กฟส.พทฑ.-ตท.", "I318101020": "ผมต.กฟส.พทฑ.", "I318101021": "ผมต.กฟส.พทฑ.-ตท.", "I318101030": "ผปบ.กฟส.พทฑ.", "I318101031": "ผปบ.กฟส.พทฑ.-ตท.", "I318101040": "ผกส.กฟส.พทฑ.", "I318101041": "ผกส.กฟส.พทฑ.-ตท.", "I318101050": "ผบร.กฟส.พทฑ.", "I318101070": "ผสน.กฟส.พทฑ."}};
 
 const COLS = ["BusA","ศ.ต้นทุน","ชื่อ ศ.ต้นทุน","สินทรัพย์","SNo.","คำอธิบายของสินทรัพย์",
   "เลขที่ผลิตภัณฑ์","เลขที่สินค้าคงคลัง","Cap.date","   มูลค่าการได้มา","     ค่าเสื่อมสะสม",
   "   มูลค่าตามบัญชี","Pers.No.","ชื่อพนักงาน","ตำแหน่ง","ศ.ต้นทุน HR","Data Date","ASS.NO.",
   "Status","Status Name","คลาส","ชื่อคลาส"];
-const NUMCOL = new Set([9,10,11]);
+const W = [72,112,132,112,62,330,150,196,102,132,132,132,92,190,230,140,102,128,80,168,80,176];
+const NUM = new Set([9,10,11]);
+const CODE = new Set([3,4,8,12,17,18,20]);
+const ROW_H = 33;
 
 const store = {hub1:null, hub2:null, hr:null};
 let merged = [], view = [], report = null;
+let visible = COLS.map(() => true);
+let sortCol = -1, sortDir = 1;
 
-/* ---------- helpers ---------- */
+/* ---------- utils ---------- */
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 const fmtInt = n => n.toLocaleString('en-US');
 const fmtMoney = n => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtShort = n => {
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n/1e9).toFixed(2)+' พันล้าน';
+  if (a >= 1e6) return (n/1e6).toFixed(1)+' ล้าน';
+  if (a >= 1e3) return (n/1e3).toFixed(0)+'K';
+  return n.toFixed(0);
+};
 const toNum = s => {
   if (typeof s === 'number') return s;
   const t = String(s||'').replace(/[, \u00a0]/g,'').trim();
@@ -295,9 +551,22 @@ const toNum = s => {
   const v = Number(t);
   return isNaN(v) ? 0 : v;
 };
-const log = (msg, err) => { $('#log').innerHTML = msg ? `<span class="${err?'err':''}">${msg}</span>` : ''; };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const yieldUI = () => new Promise(r => setTimeout(r, 16));
+const yearOf = d => { const m = /(\d{4})\s*$/.exec(String(d||'')); return m ? m[1] : ''; };
 
+function toast(msg, cls){
+  const el = document.createElement('div');
+  el.className = 'toast' + (cls ? ' ' + cls : '');
+  el.textContent = msg;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 3600);
+  setTimeout(() => el.remove(), 4000);
+}
+function log(msg, err){ const el = $('#log'); el.className = 'log' + (err ? ' err' : ''); el.textContent = msg || ''; }
+const setPb = p => { $('#pb').style.width = Math.round(p*100)+'%'; };
+
+/* ---------- file reading ---------- */
 function decodeText(buf){
   const b = new Uint8Array(buf);
   if (b[0] === 0xFF && b[1] === 0xFE) return new TextDecoder('utf-16le').decode(buf.slice(2));
@@ -306,8 +575,7 @@ function decodeText(buf){
   if (s.charCodeAt(0) === 0xFEFF) s = s.slice(1);
   return s;
 }
-function isZip(buf){ const b = new Uint8Array(buf); return b[0]===0x50 && b[1]===0x4B; }
-function isBiff(buf){ const b = new Uint8Array(buf); return b[0]===0xD0 && b[1]===0xCF; }
+const isBin = buf => { const b = new Uint8Array(buf); return (b[0]===0x50&&b[1]===0x4B)||(b[0]===0xD0&&b[1]===0xCF); };
 
 function splitRow(line){
   const out = line.split('\t');
@@ -318,22 +586,17 @@ function splitRow(line){
   }
   return out;
 }
-
-/* ---------- readers ---------- */
-async function readFile(file){
+async function readRows(file){
   const buf = await file.arrayBuffer();
-  if (isZip(buf) || isBiff(buf)){
+  if (isBin(buf)){
     const wb = XLSX.read(buf,{type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    return {kind:'rows', rows: XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''})};
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''});
   }
-  const text = decodeText(buf);
-  return {kind:'rows', rows: text.split(/\r?\n/).map(splitRow)};
+  return decodeText(buf).split(/\r?\n/).map(splitRow);
 }
 
 function detect(rows){
-  const head = rows.slice(0,60);
-  for (const r of head){
+  for (const r of rows.slice(0,60)){
     const j = r.join('|');
     if (/(^|\|)BusA\|/.test(j) && j.includes('สินทรัพย์') && j.includes('Pers.No.')) return 'hub1';
     if (j.includes('Pers.No.') && j.includes('หมายเลขพนักงาน')) return 'hr';
@@ -346,69 +609,69 @@ function detect(rows){
 function parseHub1(rows){
   let start = -1;
   for (let i=0;i<rows.length && i<60;i++){
-    if (rows[i][0] && rows[i][0].replace(/^\uFEFF/,'') === 'BusA'){ start = i+1; break; }
+    if (rows[i][0] && String(rows[i][0]).replace(/^\uFEFF/,'') === 'BusA'){ start = i+1; break; }
   }
-  if (start < 0) throw new Error('ไม่พบหัวตาราง BusA ในไฟล์ HUB1');
+  if (start < 0) throw new Error('ไม่พบหัวตาราง BusA');
   const out = [];
   for (let i=start;i<rows.length;i++){
     const r = rows[i];
     if (r.length < 13) continue;
-    const asset = (r[3]||'').trim();
-    if (!asset || !/^\d+$/.test(asset)) continue;   // ข้ามบรรทัดยอดรวมของ SAP
+    if (!/^\d+$/.test(String(r[3]||'').trim())) continue;   // ข้ามบรรทัดยอดรวมของ SAP
     out.push(r);
   }
+  if (!out.length) throw new Error('ไม่พบแถวข้อมูล');
   return out;
 }
-
 function parseHub2(rows){
   const map = new Map();
   for (const r of rows){
     if (r.length < 18) continue;
-    const asset = (r[1]||'').trim();
+    const asset = String(r[1]||'').trim();
     if (!/^\d{6,}$/.test(asset)) continue;
-    const sno = (r[3]||'').trim();
-    map.set(asset+'-'+sno, [(r[15]||'').trim(), (r[16]||'').trim()]);
+    map.set(asset+'-'+String(r[3]||'').trim(), [String(r[15]||'').trim(), String(r[16]||'').trim()]);
   }
-  if (!map.size) throw new Error('ไม่พบแถวข้อมูลในไฟล์ HUB2');
+  if (!map.size) throw new Error('ไม่พบแถวข้อมูล');
   return map;
 }
-
 function parseHr(rows){
   let hi = -1;
   for (let i=0;i<rows.length && i<40;i++){
     if (rows[i].some(c => String(c).trim()==='Pers.No.')){ hi = i; break; }
   }
-  if (hi < 0) throw new Error('ไม่พบหัวตาราง Pers.No. ในไฟล์ HR');
+  if (hi < 0) throw new Error('ไม่พบหัวตาราง Pers.No.');
   const H = rows[hi].map(c => String(c).trim());
-  const idx = name => H.indexOf(name);
-  const cId = idx('Pers.No.');
-  const cName = idx('หมายเลขพนักงาน') >= 0 ? idx('หมายเลขพนักงาน') : cId+1;
-  const cPos = idx('ตำแหน่ง') >= 0 ? idx('ตำแหน่ง') : cId+2;
-  const cCc = idx('ศูนย์ต้นทุน') >= 0 ? idx('ศูนย์ต้นทุน') : H.length-1;
+  const at = n => H.indexOf(n);
+  const cId = at('Pers.No.');
+  const cName = at('หมายเลขพนักงาน') >= 0 ? at('หมายเลขพนักงาน') : cId+1;
+  const cPos = at('ตำแหน่ง') >= 0 ? at('ตำแหน่ง') : cId+2;
+  const cCc = at('ศูนย์ต้นทุน') >= 0 ? at('ศูนย์ต้นทุน') : H.length-1;
   const map = new Map();
   for (let i=hi+1;i<rows.length;i++){
-    const r = rows[i];
-    const id = String(r[cId]||'').trim();
+    const r = rows[i], id = String(r[cId]||'').trim();
     if (!id) continue;
     map.set(id, [String(r[cName]||'').trim(), String(r[cPos]||'').trim(), String(r[cCc]||'').trim()]);
   }
-  if (!map.size) throw new Error('ไม่พบแถวข้อมูลพนักงานในไฟล์ HR');
+  if (!map.size) throw new Error('ไม่พบแถวข้อมูลพนักงาน');
   return map;
 }
 
 /* ---------- ports ---------- */
 const PORT = {hub1:'#port-hub1', hub2:'#port-hub2', hr:'#port-hr'};
-const LABEL = {hub1:'HUB1', hub2:'HUB2', hr:'HR'};
+const WIRE = {hub1:'#w1', hub2:'#w2', hr:'#w3'};
+const kb = n => n < 1024*1024 ? (n/1024).toFixed(0)+' KB' : (n/1024/1024).toFixed(1)+' MB';
 
 function setPort(kind, file, count, err){
   const el = $(PORT[kind]);
   el.classList.toggle('loaded', !!count && !err);
   el.classList.toggle('bad', !!err);
-  el.querySelector('[data-note]').textContent = err ? err : (file ? file.name : 'ยังไม่ได้เลือกไฟล์');
-  el.querySelector('[data-cnt]').textContent = count ? fmtInt(count)+' แถว' : '';
-  const wire = {hub1:'#w1', hub2:'#w2', hr:'#w3'}[kind];
-  $(wire).classList.toggle('live', !!count && !err);
-  $('#run').disabled = !(store.hub1 && store.hub2 && store.hr);
+  el.querySelector('[data-note]').textContent = err || (file ? file.name : 'คลิกเพื่อเลือกไฟล์');
+  el.querySelector('[data-cnt]').innerHTML = count
+    ? `<b>${fmtInt(count)}</b><s>${file ? kb(file.size) : ''}</s>` : '';
+  $(WIRE[kind]).classList.toggle('live', !!count && !err);
+  const ready = store.hub1 && store.hub2 && store.hr;
+  $('#run').disabled = !ready;
+  $('#st1').classList.toggle('done', !!ready);
+  $('#st2').classList.toggle('on', !!ready);
 }
 
 async function accept(files){
@@ -416,14 +679,16 @@ async function accept(files){
     try{
       log('กำลังอ่าน ' + file.name + ' …');
       await yieldUI();
-      const {rows} = await readFile(file);
+      const rows = await readRows(file);
       const kind = detect(rows);
-      if (!kind){ log('แยกประเภทไฟล์ ' + file.name + ' ไม่ได้ — ตรวจว่าเป็น HUB1, HUB2 หรือ HR', true); continue; }
+      if (!kind){ toast('แยกประเภทไฟล์ ' + file.name + ' ไม่ได้', 'err'); continue; }
       if (kind === 'hub1'){ store.hub1 = parseHub1(rows); setPort('hub1', file, store.hub1.length); }
       if (kind === 'hub2'){ store.hub2 = parseHub2(rows); setPort('hub2', file, store.hub2.size); }
       if (kind === 'hr'){ store.hr = parseHr(rows); setPort('hr', file, store.hr.size); }
+      toast('อ่าน ' + kind.toUpperCase() + ' สำเร็จ', 'ok');
       log('');
     }catch(e){
+      toast(file.name + ': ' + e.message, 'err');
       log(file.name + ': ' + e.message, true);
     }
   }
@@ -434,18 +699,18 @@ function merge(){
   const dd = $('#dataDate').value.trim();
   const {costCenter, status, assetClass} = MASTERS;
   const rows = [];
-  const missCc = new Set(), missHr = new Set(), noHub2 = [];
+  const missCc = new Set(), missHr = new Set(), noHub2 = [], zeroBook = [];
   let sumA = 0, sumD = 0, sumB = 0;
 
   for (const r of store.hub1){
-    const cc = (r[1]||'').trim();
-    const asset = (r[3]||'').trim();
-    const sno = (r[4]||'').trim();
+    const cc = String(r[1]||'').trim();
+    const asset = String(r[3]||'').trim();
+    const sno = String(r[4]||'').trim();
     const assno = asset + '-' + sno;
-    const pers = (r[12]||'').trim();
+    const pers = String(r[12]||'').trim();
 
     const h2 = store.hub2.get(assno);
-    if (!h2 && noHub2.length < 5000) noHub2.push(assno);
+    if (!h2) noHub2.push(assno);
     const ev2 = h2 ? h2[0] : '';
     const cls = h2 ? h2[1] : '';
 
@@ -455,101 +720,301 @@ function merge(){
 
     const a = toNum(r[9]), d = toNum(r[10]), b = toNum(r[11]);
     sumA += a; sumD += d; sumB += b;
+    if (a > 0 && b === 0) zeroBook.push(assno);
 
     rows.push([
-      (r[0]||'').trim(), cc, costCenter[cc] || '',
-      Number(asset), Number(sno), (r[5]||'').trim(),
-      (r[6]||'').trim(), (r[7]||'').trim(), (r[8]||'').trim(),
+      String(r[0]||'').trim(), cc, costCenter[cc] || '',
+      Number(asset), Number(sno), String(r[5]||'').trim(),
+      String(r[6]||'').trim(), String(r[7]||'').trim(), String(r[8]||'').trim(),
       a, d, b,
       pers ? Number(pers) : '',
       hr ? hr[0] : '', hr ? hr[1] : '', hr ? hr[2] : '',
-      dd, assno,
-      ev2, status[ev2] || '', cls, assetClass[cls] || ''
+      dd, assno, ev2, status[ev2] || '', cls, assetClass[cls] || ''
     ]);
   }
-  return {rows, missCc:[...missCc], missHr:[...missHr], noHub2, sumA, sumD, sumB};
+  return {rows, missCc:[...missCc], missHr:[...missHr], noHub2, zeroBook, sumA, sumD, sumB};
 }
 
-/* ---------- render ---------- */
-function renderStats(){
-  const withEmp = merged.filter(r => r[13]).length;
-  $('#stats').innerHTML = [
-    ['แถวทั้งหมด', fmtInt(merged.length), ''],
-    ['จับคู่สถานะได้', fmtInt(merged.length - report.noHub2.length), ''],
-    ['ระบุผู้ครอบครองได้', fmtInt(withEmp), ''],
-    ['มูลค่าการได้มา', fmtMoney(report.sumA), 'money'],
-    ['ค่าเสื่อมสะสม', fmtMoney(report.sumD), 'money'],
-    ['มูลค่าตามบัญชี', fmtMoney(report.sumB), 'money'],
-  ].map(([k,v,c]) => `<div class="stat"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join('');
-
-  const f = [];
-  if (report.noHub2.length) f.push(['ไม่พบใน HUB2 จึงไม่มีสถานะและคลาส', report.noHub2.length + ' รายการ', report.noHub2, 'no-hub2.csv']);
-  if (report.missHr.length) f.push(['Pers.No. ไม่มีในทะเบียน HR ชื่อพนักงานจะว่าง', report.missHr.length + ' รหัส', report.missHr, 'no-hr.csv']);
-  if (report.missCc.length) f.push(['ศ.ต้นทุน ไม่มีในตารางอ้างอิง ชื่อ ศ.ต้นทุนจะว่าง', report.missCc.length + ' รหัส', report.missCc, 'no-costcenter.csv']);
-  $('#flags').innerHTML = f.length
-    ? f.map((x,i) => `<div class="flag"><span>${x[0]} — <b>${x[1]}</b></span><button class="btn-ghost" data-flag="${i}">ดูรายการ</button></div>`).join('')
-    : '<div class="flag good"><span>จับคู่ครบทุกแถว ไม่มีรายการตกค้าง</span></div>';
-  $('#flags').querySelectorAll('[data-flag]').forEach(btn => {
-    btn.onclick = () => {
-      const x = f[+btn.dataset.flag];
-      downloadBlob(new Blob(['\uFEFF' + x[2].join('\n')], {type:'text/csv;charset=utf-8'}), x[3]);
-    };
-  });
-}
-
-function fillFilters(){
-  const st = new Map(), cl = new Map();
-  for (const r of merged){
-    if (r[19]) st.set(r[19], (st.get(r[19])||0)+1);
-    if (r[21]) cl.set(r[21], (cl.get(r[21])||0)+1);
+/* ---------- aggregation ---------- */
+function agg(rows, col){
+  const m = new Map();
+  for (const r of rows){
+    const k = r[col] === '' || r[col] == null ? '(ไม่ระบุ)' : String(r[col]);
+    let e = m.get(k);
+    if (!e){ e = [0,0,0,0]; m.set(k, e); }
+    e[0]++; e[1] += r[9]; e[2] += r[10]; e[3] += r[11];
   }
-  const opt = (m, sel) => {
-    sel.length = 1;
-    [...m.entries()].sort((a,b)=>b[1]-a[1]).forEach(([k,v]) => {
-      const o = document.createElement('option'); o.value = k; o.textContent = `${k} (${fmtInt(v)})`; sel.appendChild(o);
-    });
-  };
-  opt(st, $('#fStatus')); opt(cl, $('#fClass'));
+  return m;
+}
+
+/* ---------- dashboard ---------- */
+const PIE = ['#8B5CF6','#34D399','#F59E0B','#38BDF8','#FB7185','#A78BFA','#22D3EE','#FBBF24','#F472B6','#4ADE80'];
+
+function renderDash(){
+  const rows = view;
+  let sa=0, sd=0, sb=0, owned=0;
+  for (const r of rows){ sa+=r[9]; sd+=r[10]; sb+=r[11]; if (r[13]) owned++; }
+  const depRate = sa ? Math.abs(sd)/sa*100 : 0;
+
+  $('#kpis').innerHTML = [
+    ['','รายการสินทรัพย์', fmtInt(rows.length), rows.length !== merged.length ? `กรองจากทั้งหมด ${fmtInt(merged.length)}` : 'ทุกรายการ'],
+    ['info','มูลค่าการได้มา', fmtShort(sa), fmtMoney(sa)+' บาท'],
+    ['amber','ค่าเสื่อมสะสม', fmtShort(sd), 'คิดเป็น '+depRate.toFixed(1)+'% ของมูลค่าการได้มา'],
+    ['ok','มูลค่าตามบัญชี', fmtShort(sb), fmtMoney(sb)+' บาท'],
+    ['','ระบุผู้ครอบครอง', fmtInt(owned), rows.length ? (owned/rows.length*100).toFixed(1)+'% ของรายการ' : '—'],
+    ['','ศูนย์ต้นทุนที่เกี่ยวข้อง', fmtInt(agg(rows,1).size), 'หน่วยงานที่มีสินทรัพย์'],
+  ].map(([c,k,v,d]) => `<div class="kpi ${c}"><div class="k">${k}</div><div class="v ${String(v).length>10?'sm':''}">${v}</div><div class="d">${esc(d)}</div></div>`).join('');
+
+  // donut ตามสถานะ
+  const st = [...agg(rows,19).entries()].sort((a,b)=>b[1][0]-a[1][0]).slice(0,8);
+  const tot = st.reduce((s,x)=>s+x[1][0],0) || 1;
+  let acc = 0, arcs = '';
+  st.forEach(([k,v],i) => {
+    const frac = v[0]/tot, r = 54, C = 2*Math.PI*r;
+    arcs += `<circle cx="70" cy="70" r="${r}" fill="none" stroke="${PIE[i%PIE.length]}" stroke-width="20"
+      stroke-dasharray="${(frac*C).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-acc*C).toFixed(2)}"
+      transform="rotate(-90 70 70)"><title>${esc(k)}</title></circle>`;
+    acc += frac;
+  });
+  $('#donut').innerHTML = `<svg width="140" height="140" viewBox="0 0 140 140">${arcs}
+    <text x="70" y="66" text-anchor="middle" font-family="IBM Plex Mono" font-size="17" fill="var(--text)">${fmtInt(rows.length)}</text>
+    <text x="70" y="83" text-anchor="middle" font-size="10" fill="var(--muted)">รายการ</text></svg>`;
+  $('#donutLegend').innerHTML = st.map(([k,v],i) =>
+    `<div class="lg"><i style="background:${PIE[i%PIE.length]}"></i><span>${esc(k)}</span><b>${fmtInt(v[0])}</b></div>`).join('');
+
+  bars('#topClass', agg(rows,21), 3, v => fmtShort(v));
+  bars('#topCc', agg(rows,2), 3, v => fmtShort(v));
+
+  const yr = new Map();
+  for (const r of rows){ const y = yearOf(r[8]); if (!y) continue; yr.set(y, (yr.get(y)||[0,0,0,0])); const e = yr.get(y); e[0]++; e[1]+=r[9]; e[3]+=r[11]; }
+  const ys = [...yr.entries()].sort((a,b)=>b[0].localeCompare(a[0])).slice(0,10);
+  bars('#byYear', new Map(ys), 1, v => fmtShort(v), true);
+}
+
+function bars(sel, map, metric, fmt, keepOrder){
+  let items = [...map.entries()].map(([k,v]) => [k, Math.abs(v[metric]), v[0]]);
+  if (!keepOrder) items.sort((a,b)=>b[1]-a[1]);
+  items = items.slice(0,10);
+  const max = Math.max(...items.map(x=>x[1]), 1);
+  $(sel).innerHTML = items.length ? items.map(([k,v,n]) => `
+    <div class="brow">
+      <span class="lb" title="${esc(k)}">${esc(k)}</span>
+      <span class="vl">${fmt(v)} · ${fmtInt(n)} รายการ</span>
+      <span class="btrack"><i style="width:${(v/max*100).toFixed(1)}%"></i></span>
+    </div>`).join('') : '<div class="cap">ไม่มีข้อมูล</div>';
+}
+
+/* ---------- filters ---------- */
+function fillSelect(sel, map, label){
+  const cur = sel.value;
+  sel.length = 1;
+  [...map.entries()].sort((a,b)=>b[1]-a[1]).forEach(([k,n]) => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = `${k} (${fmtInt(n)})`;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+function buildFilters(){
+  const mk = col => { const m = new Map(); for (const r of merged){ const v = r[col]; if (v) m.set(String(v), (m.get(String(v))||0)+1); } return m; };
+  fillSelect($('#fStatus'), mk(19));
+  fillSelect($('#fClass'), mk(21));
+  fillSelect($('#fCc'), mk(2));
+  const y = new Map();
+  for (const r of merged){ const v = yearOf(r[8]); if (v) y.set(v, (y.get(v)||0)+1); }
+  const sel = $('#fYear'); sel.length = 1;
+  [...y.keys()].sort((a,b)=>b.localeCompare(a)).forEach(k => {
+    const o = document.createElement('option'); o.value = k; o.textContent = `${k} (${fmtInt(y.get(k))})`; sel.appendChild(o);
+  });
 }
 
 function applyFilter(){
   const q = $('#q').value.trim().toLowerCase();
-  const s = $('#fStatus').value, c = $('#fClass').value;
+  const s = $('#fStatus').value, c = $('#fClass').value, cc = $('#fCc').value;
+  const yy = $('#fYear').value, ow = $('#fOwner').value;
   view = merged.filter(r => {
     if (s && r[19] !== s) return false;
     if (c && r[21] !== c) return false;
+    if (cc && r[2] !== cc) return false;
+    if (yy && yearOf(r[8]) !== yy) return false;
+    if (ow === 'has' && !r[13]) return false;
+    if (ow === 'none' && r[13]) return false;
     if (!q) return true;
-    return String(r[3]).includes(q) || String(r[17]).toLowerCase().includes(q)
-        || String(r[5]).toLowerCase().includes(q) || String(r[13]).toLowerCase().includes(q)
-        || String(r[1]).toLowerCase().includes(q) || String(r[2]).toLowerCase().includes(q)
-        || String(r[6]).toLowerCase().includes(q);
+    return String(r[17]).toLowerCase().includes(q) || String(r[5]).toLowerCase().includes(q)
+        || String(r[13]).toLowerCase().includes(q) || String(r[1]).toLowerCase().includes(q)
+        || String(r[2]).toLowerCase().includes(q) || String(r[6]).toLowerCase().includes(q)
+        || String(r[7]).toLowerCase().includes(q) || String(r[14]).toLowerCase().includes(q);
   });
-  renderTable();
+  if (sortCol >= 0) sortView();
+  renderChips(); renderTable(); renderDash(); renderPivot(); syncCounts();
 }
 
+function renderChips(){
+  const items = [];
+  const add = (label, val, reset) => { if (val) items.push([label, val, reset]); };
+  add('ค้นหา', $('#q').value.trim(), () => $('#q').value = '');
+  add('สถานะ', $('#fStatus').value, () => $('#fStatus').value = '');
+  add('คลาส', $('#fClass').value, () => $('#fClass').value = '');
+  add('ศูนย์ต้นทุน', $('#fCc').value, () => $('#fCc').value = '');
+  add('ปีที่ได้มา', $('#fYear').value, () => $('#fYear').value = '');
+  const ow = $('#fOwner');
+  if (ow.value) items.push(['ผู้ครอบครอง', ow.options[ow.selectedIndex].text, () => ow.value = '']);
+  const box = $('#chips');
+  box.innerHTML = items.map((x,i) => `<span class="chip">${x[0]} <b>${esc(x[1])}</b><button data-c="${i}" title="ล้าง">✕</button></span>`).join('')
+    + (items.length > 1 ? '<span class="chip"><button data-c="all" style="padding:0 8px">ล้างทั้งหมด</button></span>' : '');
+  box.querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+    if (b.dataset.c === 'all') items.forEach(x => x[2]()); else items[+b.dataset.c][2]();
+    applyFilter();
+  });
+}
+
+/* ---------- virtual table ---------- */
+function tpl(){ return COLS.map((_,i) => visible[i] ? W[i]+'px' : null).filter(Boolean).join(' '); }
+function sortView(){
+  const c = sortCol;
+  view = view.slice().sort((a,b) => {
+    const x = a[c], y = b[c];
+    if (typeof x === 'number' && typeof y === 'number') return (x-y)*sortDir;
+    return String(x).localeCompare(String(y),'th')*sortDir;
+  });
+}
+function renderHead(){
+  const t = tpl();
+  const h = $('#vhead');
+  h.style.gridTemplateColumns = t;
+  h.innerHTML = COLS.map((c,i) => visible[i]
+    ? `<div class="h ${NUM.has(i)?'num':''}" data-s="${i}" title="${esc(c.trim())}">${esc(c.trim())}${sortCol===i?`<em>${sortDir>0?'▲':'▼'}</em>`:''}</div>` : '').join('');
+  h.querySelectorAll('[data-s]').forEach(el => el.onclick = () => {
+    const i = +el.dataset.s;
+    if (sortCol === i) sortDir = -sortDir; else { sortCol = i; sortDir = 1; }
+    sortView(); renderHead(); renderTable();
+  });
+}
 function renderTable(){
-  $('#thead').innerHTML = COLS.map(c => `<th>${c.trim()}</th>`).join('');
-  const N = Math.min(view.length, 200);
+  renderHead();
+  const body = $('#vbody'), box = $('#vt');
+  body.style.height = (view.length * ROW_H) + 'px';
+  body.style.minWidth = COLS.reduce((s,_,i) => s + (visible[i] ? W[i] : 0), 0) + 'px';
+  $('#vempty').style.display = view.length ? 'none' : 'block';
+  paint();
+  let sa=0, sb=0;
+  for (const r of view){ sa+=r[9]; sb+=r[11]; }
+  $('#tinfo').textContent = `${fmtInt(view.length)} แถว` + (view.length !== merged.length ? ` จากทั้งหมด ${fmtInt(merged.length)}` : '');
+  $('#tsum').textContent = `รวมมูลค่าการได้มา ${fmtMoney(sa)} · มูลค่าตามบัญชี ${fmtMoney(sb)}`;
+  box.onscroll = paint;
+}
+function paint(){
+  const box = $('#vt'), body = $('#vbody');
+  const top = Math.max(0, box.scrollTop - 60);
+  const start = Math.floor(top / ROW_H);
+  const end = Math.min(view.length, Math.ceil((box.scrollTop + box.clientHeight + 60) / ROW_H));
+  const t = tpl();
   const buf = [];
-  for (let i=0;i<N;i++){
+  for (let i=start;i<end;i++){
     const r = view[i];
-    buf.push('<tr>' + r.map((v,j) => {
-      if (NUMCOL.has(j)) return `<td class="num">${typeof v==='number'?fmtMoney(v):''}</td>`;
-      if (j===3||j===4||j===12||j===17||j===18||j===20||j===8) return `<td class="code">${v===''?'':v}</td>`;
-      return `<td>${String(v??'')}</td>`;
-    }).join('') + '</tr>');
+    let cells = '';
+    for (let j=0;j<COLS.length;j++){
+      if (!visible[j]) continue;
+      const v = r[j];
+      if (NUM.has(j)) cells += `<div class="c num ${v<0?'neg':''}">${typeof v==='number'?fmtMoney(v):''}</div>`;
+      else cells += `<div class="c ${CODE.has(j)?'code':''}" title="${esc(v)}">${esc(v)}</div>`;
+    }
+    buf.push(`<div class="vrow" data-i="${i}" style="top:${i*ROW_H}px;height:${ROW_H}px;grid-template-columns:${t}">${cells}</div>`);
   }
-  $('#tbody').innerHTML = buf.join('');
-  $('#more').textContent = view.length > N
-    ? `แสดง ${fmtInt(N)} จาก ${fmtInt(view.length)} แถว — ไฟล์ที่ดาวน์โหลดจะได้ครบทุกแถวที่กรองไว้`
-    : `แสดงครบ ${fmtInt(view.length)} แถว`;
-  $('#dlXlsx').textContent = `ดาวน์โหลด Excel (${fmtInt(view.length)})`;
-  $('#dlCsv').textContent = `ดาวน์โหลด CSV (${fmtInt(view.length)})`;
-  $('#gsScope').textContent = `จะเขียน ${fmtInt(view.length)} แถวที่แสดงอยู่ตอนนี้`;
+  body.innerHTML = buf.join('');
+  body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(+el.dataset.i, el));
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(i, el){
+  const r = view[i];
+  $$('.vrow').forEach(x => x.classList.remove('sel'));
+  if (el) el.classList.add('sel');
+  $('#dTitle').textContent = r[5] || '(ไม่มีคำอธิบาย)';
+  $('#dSub').textContent = r[17] + ' · ' + (r[19] || 'ไม่มีสถานะ');
+  $('#dBody').innerHTML = COLS.map((c,j) => {
+    const v = NUM.has(j) ? (typeof r[j]==='number'?fmtMoney(r[j]):'') : r[j];
+    return `<div class="dl"><dt>${esc(c.trim())}</dt><dd class="${NUM.has(j)||CODE.has(j)?'mono':''}">${esc(v)||'<span style="color:var(--faint)">—</span>'}</dd></div>`;
+  }).join('');
+  $('#drawer').classList.add('on'); $('#scrim').classList.add('on');
+  $('#drawer').setAttribute('aria-hidden','false');
+}
+function closeDrawer(){
+  $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on');
+  $('#drawer').setAttribute('aria-hidden','true');
+  $$('.vrow').forEach(x => x.classList.remove('sel'));
+}
+
+/* ---------- column picker ---------- */
+function buildColMenu(){
+  const m = $('#colMenu');
+  m.innerHTML = COLS.map((c,i) => `<label><input type="checkbox" data-col="${i}" ${visible[i]?'checked':''}>${esc(c.trim())}</label>`).join('')
+    + `<div class="act"><button class="btn btn-g btn-s" data-all="1">เลือกทั้งหมด</button><button class="btn btn-g btn-s" data-key="1">เฉพาะคอลัมน์หลัก</button></div>`;
+  m.querySelectorAll('[data-col]').forEach(cb => cb.onchange = () => {
+    visible[+cb.dataset.col] = cb.checked;
+    if (!visible.some(Boolean)) { visible[3] = true; buildColMenu(); }
+    renderTable();
+  });
+  m.querySelector('[data-all]').onclick = () => { visible = COLS.map(()=>true); buildColMenu(); renderTable(); };
+  m.querySelector('[data-key]').onclick = () => {
+    const keep = new Set([1,2,3,4,5,9,11,13,19,21]);
+    visible = COLS.map((_,i)=>keep.has(i)); buildColMenu(); renderTable();
+  };
+}
+
+/* ---------- pivot ---------- */
+const PIVOTS = [[2,'ชื่อ ศ.ต้นทุน'],[1,'รหัส ศ.ต้นทุน'],[21,'ชื่อคลาส'],[19,'สถานะ'],[13,'ชื่อพนักงาน'],[14,'ตำแหน่ง'],[0,'BusA'],[15,'ศ.ต้นทุน HR']];
+let pivotRows = [];
+
+function renderPivot(){
+  const col = +$('#pGroup').value;
+  const mode = $('#pSort').value;
+  let items = [...agg(view, col).entries()].map(([k,v]) => [k, ...v]);
+  items.sort((a,b) => mode === 'k' ? String(a[0]).localeCompare(String(b[0]),'th') : Math.abs(b[+mode+1]) - Math.abs(a[+mode+1]));
+  pivotRows = items;
+  const tot = items.reduce((s,x) => s + Math.abs(x[4]), 0) || 1;
+  const label = (PIVOTS.find(p => p[0] === col)||[])[1] || '';
+  $('#phead').innerHTML = [label,'จำนวน','มูลค่าการได้มา','ค่าเสื่อมสะสม','มูลค่าตามบัญชี','สัดส่วน']
+    .map((h,i) => `<div class="h ${i>0?'num':''}">${h}</div>`).join('');
+  $('#pbody').innerHTML = items.map(x => `
+    <div class="vrow" style="position:relative;top:auto;height:${ROW_H}px;grid-template-columns:minmax(240px,1.6fr) 120px 1fr 1fr 1fr 90px">
+      <div class="c" title="${esc(x[0])}">${esc(x[0])}</div>
+      <div class="c num">${fmtInt(x[1])}</div>
+      <div class="c num">${fmtMoney(x[2])}</div>
+      <div class="c num neg">${fmtMoney(x[3])}</div>
+      <div class="c num">${fmtMoney(x[4])}</div>
+      <div class="c num">${(Math.abs(x[4])/tot*100).toFixed(1)}%</div>
+    </div>`).join('');
+  $('#pinfo').textContent = `${fmtInt(items.length)} กลุ่ม จาก ${fmtInt(view.length)} แถวที่กรองไว้`;
+}
+
+/* ---------- quality ---------- */
+function renderQA(){
+  const list = [];
+  if (report.noHub2.length) list.push(['ไม่พบใน HUB2', `${report.noHub2.length} รายการไม่มีสถานะและคลาส เพราะจับคู่ ASS.NO. กับไฟล์ HUB2 ไม่ได้`, report.noHub2, 'ไม่พบใน HUB2.csv']);
+  if (report.missHr.length) list.push(['Pers.No. ไม่มีในทะเบียน HR', `${report.missHr.length} รหัสพนักงานไม่พบในไฟล์ HR ชื่อและตำแหน่งจะว่าง`, report.missHr, 'ไม่พบใน HR.csv']);
+  if (report.missCc.length) list.push(['ศูนย์ต้นทุนไม่มีในตารางอ้างอิง', `${report.missCc.length} รหัสไม่มีในตาราง master ชื่อ ศ.ต้นทุนจะว่าง`, report.missCc, 'ศูนย์ต้นทุนไม่พบ.csv']);
+  const noOwner = merged.filter(r => !r[12]).length;
+  if (noOwner) list.push(['ยังไม่ระบุผู้ครอบครอง', `${fmtInt(noOwner)} รายการไม่มี Pers.No. ในไฟล์ HUB1`, null, null]);
+  if (report.zeroBook.length) list.push(['มูลค่าตามบัญชีเป็นศูนย์', `${fmtInt(report.zeroBook.length)} รายการที่มีมูลค่าการได้มาแต่ตัดค่าเสื่อมหมดแล้ว`, report.zeroBook, 'มูลค่าตามบัญชีเป็นศูนย์.csv']);
+
+  $('#issues').innerHTML = list.length ? list.map((x,i) => `
+    <div class="issue">
+      <div class="ic">!</div>
+      <div style="flex:1"><h4>${esc(x[0])}</h4><p>${esc(x[1])}</p></div>
+      ${x[2] ? `<button class="btn btn-g btn-s" data-q="${i}">ดาวน์โหลดรายการ</button>` : ''}
+    </div>`).join('')
+    : `<div class="issue good"><div class="ic">✓</div><div><h4>ไม่พบปัญหา</h4><p>ทุกแถวจับคู่ครบและมีข้อมูลอ้างอิงสมบูรณ์</p></div></div>`;
+  $('#issues').querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
+    const x = list[+b.dataset.q];
+    dl(new Blob(['\uFEFF' + x[2].join('\n')], {type:'text/csv;charset=utf-8'}), x[3]);
+    toast('ดาวน์โหลดรายการแล้ว', 'ok');
+  });
+  $('#tabIssues').textContent = list.filter(x => x[2]).length ? list.length : '';
 }
 
 /* ---------- export ---------- */
-function downloadBlob(blob, name){
+function dl(blob, name){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = name; a.click();
@@ -557,144 +1022,157 @@ function downloadBlob(blob, name){
 }
 const stamp = () => new Date().toISOString().slice(0,10).replace(/-/g,'');
 
+function csvOf(header, rows){
+  const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const parts = ['\uFEFF' + header.map(h => q(String(h).trim())).join(',') + '\n'];
+  for (let i=0;i<rows.length;i+=5000) parts.push(rows.slice(i,i+5000).map(r => r.map(q).join(',')).join('\n') + '\n');
+  return new Blob(parts, {type:'text/csv;charset=utf-8'});
+}
+function sheetOf(header, rows, money){
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  for (let i=0;i<rows.length;i++) for (const c of money){
+    const cell = ws[XLSX.utils.encode_cell({r:i+1,c})];
+    if (cell) cell.z = '#,##0.00';
+  }
+  return ws;
+}
 async function exportXlsx(){
-  log('กำลังสร้างไฟล์ Excel — แถวเยอะอาจใช้เวลาสักครู่ …');
+  toast('กำลังสร้างไฟล์ Excel …');
   await yieldUI();
   try{
-    const ws = XLSX.utils.aoa_to_sheet([COLS, ...view]);
-    for (let i=0;i<view.length;i++){
-      for (const c of [9,10,11]){
-        const cell = ws[XLSX.utils.encode_cell({r:i+1, c})];
-        if (cell) cell.z = '#,##0.00';
-      }
-    }
-    ws['!cols'] = [8,13,15,12,6,44,20,26,11,15,15,15,10,26,30,16,12,15,8,22,8,22].map(w => ({wch:w}));
+    const ws = sheetOf(COLS, view, [9,10,11]);
+    ws['!cols'] = W.map(w => ({wch: Math.round(w/7)}));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Data');
-    XLSX.writeFile(wb, `Data-รวมสินทรัพย์-${stamp()}.xlsx`, {compression:true});
-    log('สร้างไฟล์ Excel เรียบร้อย');
-  }catch(e){
-    log('สร้าง Excel ไม่สำเร็จ: ' + e.message + ' — ลองดาวน์โหลดเป็น CSV แทน', true);
-  }
+    XLSX.writeFile(wb, `Asset-Hub-Data-${stamp()}.xlsx`, {compression:true});
+    toast('สร้างไฟล์ Excel เรียบร้อย', 'ok');
+  }catch(e){ toast('สร้าง Excel ไม่สำเร็จ ลอง CSV แทน', 'err'); }
 }
-
-function exportCsv(){
-  const esc = v => {
-    const s = String(v ?? '');
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
-  };
-  const parts = ['\uFEFF' + COLS.map(c => esc(c.trim())).join(',') + '\n'];
-  const CH = 5000;
-  for (let i=0;i<view.length;i+=CH){
-    parts.push(view.slice(i, i+CH).map(r => r.map(esc).join(',')).join('\n') + '\n');
-  }
-  downloadBlob(new Blob(parts, {type:'text/csv;charset=utf-8'}), `Data-รวมสินทรัพย์-${stamp()}.csv`);
-  log('สร้างไฟล์ CSV เรียบร้อย');
-}
-
-/* ---------- push to Google Sheet ---------- */
-function gsMsg(text, cls){
-  const el = $('#gsMsg');
-  el.className = 'gsmsg' + (cls ? ' ' + cls : '');
-  el.textContent = text;
-}
-const gsBar = p => { $('#gsBar').style.width = Math.round(p*100) + '%'; };
-
-async function gsPost(url, payload){
-  // ไม่ตั้ง Content-Type เพื่อให้เป็น simple request ไม่ต้องทำ CORS preflight
-  const res = await fetch(url, {method:'POST', body: JSON.stringify(payload), redirect:'follow'});
-  const txt = await res.text();
-  let j;
-  try { j = JSON.parse(txt); }
-  catch(e){ throw new Error('ตอบกลับผิดรูปแบบ — ตรวจว่า Deploy แบบ Anyone แล้วหรือยัง'); }
-  if (!j.ok) throw new Error(j.error || 'Apps Script แจ้งข้อผิดพลาด');
-  return j;
-}
-async function gsPostRetry(url, payload){
-  try { return await gsPost(url, payload); }
-  catch(e){ await new Promise(r => setTimeout(r, 1500)); return gsPost(url, payload); }
-}
-
-async function pushToSheet(){
-  const url = $('#gsUrl').value.trim();
-  const token = $('#gsToken').value.trim();
-  const sheet = $('#gsSheet').value.trim() || 'Data';
-  if (!url){ gsMsg('ยังไม่ได้กรอก Web App URL', 'err'); return; }
-  if (!view.length){ gsMsg('ไม่มีแถวให้ส่ง', 'err'); return; }
-  if (!confirm(`จะเขียนทับชีต "${sheet}" ด้วยข้อมูล ${fmtInt(view.length)} แถว ยืนยันหรือไม่`)) return;
-
-  const btn = $('#gsRun');
-  btn.disabled = true;
-  const header = COLS;
-  try{
-    gsBar(0);
-    gsMsg('กำลังล้างชีตปลายทางและเขียนหัวตาราง …');
-    await gsPost(url, {token, sheet, mode:'start', header, total:view.length, cols:header.length});
-
-    for (let i=0;i<view.length;i+=GS_CHUNK){
-      const chunk = view.slice(i, i+GS_CHUNK);
-      gsMsg(`กำลังส่งแถว ${fmtInt(i+1)}–${fmtInt(i+chunk.length)} จาก ${fmtInt(view.length)} …`);
-      await gsPostRetry(url, {token, sheet, mode:'chunk', startRow:i+2, rows:chunk});
-      gsBar((i+chunk.length)/view.length);
-    }
-
-    gsMsg('กำลังจัดรูปแบบและตัดแถวส่วนเกิน …');
-    await gsPost(url, {token, sheet, mode:'finish', total:view.length, cols:header.length});
-    gsBar(1);
-    gsMsg(`อัปเดตชีต "${sheet}" เรียบร้อย ${fmtInt(view.length)} แถว`, 'ok');
-  }catch(e){
-    gsMsg('อัปเดตไม่สำเร็จ: ' + e.message, 'err');
-  }
-  btn.disabled = false;
+function pivotOut(){
+  const label = (PIVOTS.find(p => p[0] === +$('#pGroup').value)||[])[1] || 'กลุ่ม';
+  return [[label,'จำนวนรายการ','มูลค่าการได้มา','ค่าเสื่อมสะสม','มูลค่าตามบัญชี'], pivotRows];
 }
 
 /* ---------- wiring ---------- */
-$('#gsUrl').value = GS_CONFIG.url;
-$('#gsToken').value = GS_CONFIG.token;
-if (GS_CONFIG.sheet) $('#gsSheet').value = GS_CONFIG.sheet;
-$('#gsRun').addEventListener('click', pushToSheet);
-let pickTarget = null;
 Object.keys(PORT).forEach(k => {
   const el = $(PORT[k]);
-  const open = () => { pickTarget = k; $('#filePicker').value=''; $('#filePicker').click(); };
+  const open = () => { $('#filePicker').value=''; $('#filePicker').click(); };
   el.addEventListener('click', open);
   el.addEventListener('keydown', e => { if (e.key==='Enter'||e.key===' '){ e.preventDefault(); open(); } });
 });
-$('#filePicker').addEventListener('change', e => { pickTarget = null; accept([...e.target.files]); });
+$('#filePicker').addEventListener('change', e => accept([...e.target.files]));
 
-const dz = $('#dz');
-['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('over'); }));
-['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('over'); }));
-dz.addEventListener('drop', e => accept([...e.dataTransfer.files]));
-window.addEventListener('dragover', e => e.preventDefault());
-window.addEventListener('drop', e => e.preventDefault());
+const dz = $('#dz'), veil = $('#veil');
+dz.addEventListener('click', () => { $('#filePicker').value=''; $('#filePicker').click(); });
+
+let dragDepth = 0;
+const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+window.addEventListener('dragenter', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth++; veil.classList.add('on'); dz.classList.add('over');
+});
+window.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener('dragleave', e => {
+  if (!hasFiles(e)) return;
+  dragDepth = Math.max(0, dragDepth-1);
+  if (!dragDepth){ veil.classList.remove('on'); dz.classList.remove('over'); }
+});
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  dragDepth = 0; veil.classList.remove('on'); dz.classList.remove('over');
+  const files = [...(e.dataTransfer?.files || [])];
+  if (files.length) accept(files);
+});
 
 $('#run').addEventListener('click', async () => {
-  $('#run').disabled = true;
+  $('#run').disabled = true; setPb(.15);
   log('กำลังรวมข้อมูล …');
   await yieldUI();
   try{
     const t0 = performance.now();
-    report = merge();
-    merged = report.rows;
-    view = merged;
-    $('#result').classList.add('on');
-    $('#resultMeta').textContent = `${fmtInt(merged.length)} แถว · ${COLS.length} คอลัมน์ · ใช้เวลา ${((performance.now()-t0)/1000).toFixed(1)} วิ`;
-    renderStats(); fillFilters(); renderTable();
-    log('รวมข้อมูลเสร็จแล้ว');
-    $('#result').scrollIntoView({behavior:'smooth', block:'start'});
+    report = merge(); merged = report.rows; view = merged;
+    sortCol = -1;
+    setPb(.7); await yieldUI();
+
+    $('#pGroup').innerHTML = PIVOTS.map(([i,l]) => `<option value="${i}">แยกตาม${l}</option>`).join('');
+    buildFilters(); buildColMenu();
+    $('#ws').classList.add('on'); $('#exportbar').classList.add('on');
+    applyFilter(); renderQA();
+    $('#st2').classList.add('done'); $('#st3').classList.add('on');
+    setPb(1);
+    log('');
+    toast(`รวมข้อมูลเสร็จ ${fmtInt(merged.length)} แถว ใน ${((performance.now()-t0)/1000).toFixed(1)} วินาที`, 'ok');
+    $('#ws').scrollIntoView({behavior:'smooth', block:'start'});
   }catch(e){
     log('รวมข้อมูลไม่สำเร็จ: ' + e.message, true);
+    toast('รวมข้อมูลไม่สำเร็จ: ' + e.message, 'err');
+    setPb(0);
   }
   $('#run').disabled = false;
 });
 
+function syncCounts(){
+  $('#tabCount').textContent = fmtInt(view.length);
+  let sb = 0; for (const r of view) sb += r[11];
+  $('#ebSum').innerHTML = `จะส่งออก <b>${fmtInt(view.length)}</b> แถว · มูลค่าตามบัญชีรวม <b>${fmtMoney(sb)}</b> บาท`;
+}
+
+$$('.tab').forEach(t => t.onclick = () => {
+  $$('.tab').forEach(x => x.classList.remove('on'));
+  $$('.view').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+  $('#v-' + t.dataset.view).classList.add('on');
+  $('#exportbar').classList.toggle('on', t.dataset.view !== 'pivot');
+  if (t.dataset.view === 'table') paint();
+});
+
 let tmr;
-$('#q').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(applyFilter, 220); });
-$('#fStatus').addEventListener('change', applyFilter);
-$('#fClass').addEventListener('change', applyFilter);
-$('#dlXlsx').addEventListener('click', exportXlsx);
-$('#dlCsv').addEventListener('click', exportCsv);
+$('#q').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(applyFilter, 200); });
+['#fStatus','#fClass','#fCc','#fYear','#fOwner'].forEach(s => $(s).addEventListener('change', applyFilter));
+$('#pGroup').addEventListener('change', renderPivot);
+$('#pSort').addEventListener('change', renderPivot);
+
+$('#colBtn').onclick = e => { e.stopPropagation(); $('#colMenu').classList.toggle('on'); };
+document.addEventListener('click', e => { if (!e.target.closest('.pop')) $('#colMenu').classList.remove('on'); });
+
+$('#dlXlsx').onclick = exportXlsx;
+$('#dlCsv').onclick = () => { dl(csvOf(COLS, view), `Asset-Hub-Data-${stamp()}.csv`); toast('ดาวน์โหลด CSV แล้ว','ok'); };
+$('#pCsv').onclick = () => { const [h,r] = pivotOut(); dl(csvOf(h,r), `Asset-Hub-สรุปกลุ่ม-${stamp()}.csv`); toast('ดาวน์โหลดสรุปแล้ว','ok'); };
+$('#pXlsx').onclick = () => {
+  const [h,r] = pivotOut();
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheetOf(h, r, [2,3,4]), 'สรุป');
+  XLSX.writeFile(wb, `Asset-Hub-สรุปกลุ่ม-${stamp()}.xlsx`);
+  toast('ดาวน์โหลดสรุปแล้ว','ok');
+};
+
+$('#dClose').onclick = closeDrawer;
+$('#scrim').onclick = closeDrawer;
+$('#theme').onclick = () => {
+  const cur = document.documentElement.dataset.theme;
+  document.documentElement.dataset.theme = cur === 'dark' ? 'light' : 'dark';
+  if (merged.length) renderDash();
+};
+$('#reset').onclick = () => {
+  if (merged.length && !confirm('ล้างไฟล์และผลลัพธ์ทั้งหมด?')) return;
+  store.hub1 = store.hub2 = store.hr = null;
+  merged = []; view = []; report = null;
+  ['hub1','hub2','hr'].forEach(k => setPort(k, null, 0));
+  $('#ws').classList.remove('on'); $('#exportbar').classList.remove('on');
+  $('#st1').classList.remove('done'); $('#st2').className = 'step'; $('#st3').className = 'step';
+  $('#st1').classList.add('on');
+  setPb(0); log('');
+  window.scrollTo({top:0, behavior:'smooth'});
+};
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeDrawer();
+  if (e.key === '/' && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)){
+    e.preventDefault();
+    $$('.tab').find(t => t.dataset.view === 'table').click();
+    $('#q').focus();
+  }
+});
 </script>
 </body>
 </html>
