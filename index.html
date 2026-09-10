@@ -257,13 +257,17 @@ input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
 .dl dd.mono{font-family:var(--mono)}
 
 /* ---------- quality ---------- */
-.issue{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--r);padding:15px 18px;margin-bottom:10px}
+.issue{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--r);padding:15px 18px;margin-bottom:11px}
 .issue.good{border-left-color:var(--ok)}
-.issue .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber);flex:none;font-size:14px}
-.issue.good .ic{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
-.issue h4{margin:0 0 2px;font-size:13.5px;font-weight:600}
-.issue p{margin:0;font-size:12.5px;color:var(--muted)}
-.issue .n{font-family:var(--mono);color:var(--text)}
+.ihead{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.ihead .ic{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--amber) 16%,transparent);color:var(--amber);flex:none;font-size:14px}
+.issue.good .ihead .ic{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.ihead h4{margin:0 0 2px;font-size:13.5px;font-weight:600}
+.ihead p{margin:0;font-size:12.5px;color:var(--muted)}
+.ihead .n{font-family:var(--mono);color:var(--text)}
+.ibody{display:none;margin-top:15px;padding-top:15px;border-top:1px solid var(--line)}
+.ibody.on{display:block}
+.ibody .tfoot{margin-top:9px}
 
 /* ---------- export bar ---------- */
 .exportbar{
@@ -699,7 +703,8 @@ function merge(){
   const dd = $('#dataDate').value.trim();
   const {costCenter, status, assetClass} = MASTERS;
   const rows = [];
-  const missCc = new Set(), missHr = new Set(), noHub2 = [], zeroBook = [];
+  const ccSet = new Set(), hrSet = new Set();
+  const noHub2 = [], badHr = [], badCc = [], noOwner = [], zeroBook = [];
   let sumA = 0, sumD = 0, sumB = 0;
 
   for (const r of store.hub1){
@@ -710,19 +715,14 @@ function merge(){
     const pers = String(r[12]||'').trim();
 
     const h2 = store.hub2.get(assno);
-    if (!h2) noHub2.push(assno);
     const ev2 = h2 ? h2[0] : '';
     const cls = h2 ? h2[1] : '';
-
     const hr = pers ? store.hr.get(pers) : null;
-    if (pers && !hr) missHr.add(pers);
-    if (cc && !(cc in costCenter)) missCc.add(cc);
 
     const a = toNum(r[9]), d = toNum(r[10]), b = toNum(r[11]);
     sumA += a; sumD += d; sumB += b;
-    if (a > 0 && b === 0) zeroBook.push(assno);
 
-    rows.push([
+    const row = [
       String(r[0]||'').trim(), cc, costCenter[cc] || '',
       Number(asset), Number(sno), String(r[5]||'').trim(),
       String(r[6]||'').trim(), String(r[7]||'').trim(), String(r[8]||'').trim(),
@@ -730,9 +730,17 @@ function merge(){
       pers ? Number(pers) : '',
       hr ? hr[0] : '', hr ? hr[1] : '', hr ? hr[2] : '',
       dd, assno, ev2, status[ev2] || '', cls, assetClass[cls] || ''
-    ]);
+    ];
+    rows.push(row);
+
+    if (!h2) noHub2.push(row);
+    if (pers && !hr){ hrSet.add(pers); badHr.push(row); }
+    if (!pers) noOwner.push(row);
+    if (cc && !(cc in costCenter)){ ccSet.add(cc); badCc.push(row); }
+    if (a > 0 && b === 0) zeroBook.push(row);
   }
-  return {rows, missCc:[...missCc], missHr:[...missHr], noHub2, zeroBook, sumA, sumD, sumB};
+  return {rows, noHub2, badHr, badCc, noOwner, zeroBook,
+          ccCodes:[...ccSet], hrCodes:[...hrSet], sumA, sumD, sumB};
 }
 
 /* ---------- aggregation ---------- */
@@ -922,12 +930,11 @@ function paint(){
     buf.push(`<div class="vrow" data-i="${i}" style="top:${i*ROW_H}px;height:${ROW_H}px;grid-template-columns:${t}">${cells}</div>`);
   }
   body.innerHTML = buf.join('');
-  body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(+el.dataset.i, el));
+  body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(view[+el.dataset.i], el));
 }
 
 /* ---------- drawer ---------- */
-function openDrawer(i, el){
-  const r = view[i];
+function openDrawer(r, el){
   $$('.vrow').forEach(x => x.classList.remove('sel'));
   if (el) el.classList.add('sel');
   $('#dTitle').textContent = r[5] || '(ไม่มีคำอธิบาย)';
@@ -988,29 +995,120 @@ function renderPivot(){
   $('#pinfo').textContent = `${fmtInt(items.length)} กลุ่ม จาก ${fmtInt(view.length)} แถวที่กรองไว้`;
 }
 
-/* ---------- quality ---------- */
-function renderQA(){
-  const list = [];
-  if (report.noHub2.length) list.push(['ไม่พบใน HUB2', `${report.noHub2.length} รายการไม่มีสถานะและคลาส เพราะจับคู่ ASS.NO. กับไฟล์ HUB2 ไม่ได้`, report.noHub2, 'ไม่พบใน HUB2.csv']);
-  if (report.missHr.length) list.push(['Pers.No. ไม่มีในทะเบียน HR', `${report.missHr.length} รหัสพนักงานไม่พบในไฟล์ HR ชื่อและตำแหน่งจะว่าง`, report.missHr, 'ไม่พบใน HR.csv']);
-  if (report.missCc.length) list.push(['ศูนย์ต้นทุนไม่มีในตารางอ้างอิง', `${report.missCc.length} รหัสไม่มีในตาราง master ชื่อ ศ.ต้นทุนจะว่าง`, report.missCc, 'ศูนย์ต้นทุนไม่พบ.csv']);
-  const noOwner = merged.filter(r => !r[12]).length;
-  if (noOwner) list.push(['ยังไม่ระบุผู้ครอบครอง', `${fmtInt(noOwner)} รายการไม่มี Pers.No. ในไฟล์ HUB1`, null, null]);
-  if (report.zeroBook.length) list.push(['มูลค่าตามบัญชีเป็นศูนย์', `${fmtInt(report.zeroBook.length)} รายการที่มีมูลค่าการได้มาแต่ตัดค่าเสื่อมหมดแล้ว`, report.zeroBook, 'มูลค่าตามบัญชีเป็นศูนย์.csv']);
+/* ---------- reusable virtual table ---------- */
+const FULLW = W.reduce((a,b) => a+b, 0);
+function mountVT(host, rows){
+  host.innerHTML =
+    `<div class="vt" style="height:min(46vh,400px)"><div class="vhead"></div><div class="vbody"></div></div>
+     <div class="tfoot"><span></span><span></span></div>`;
+  const box = host.querySelector('.vt');
+  const head = host.querySelector('.vhead');
+  const body = host.querySelector('.vbody');
+  const t = W.map(w => w+'px').join(' ');
+  head.style.gridTemplateColumns = t;
+  head.style.minWidth = FULLW+'px';
+  head.innerHTML = COLS.map((c,i) => `<div class="h ${NUM.has(i)?'num':''}" style="cursor:default" title="${esc(c.trim())}">${esc(c.trim())}</div>`).join('');
+  body.style.height = (rows.length*ROW_H)+'px';
+  body.style.minWidth = FULLW+'px';
 
-  $('#issues').innerHTML = list.length ? list.map((x,i) => `
+  const draw = () => {
+    const start = Math.floor(Math.max(0, box.scrollTop-60) / ROW_H);
+    const end = Math.min(rows.length, Math.ceil((box.scrollTop + box.clientHeight + 60) / ROW_H));
+    const buf = [];
+    for (let i=start;i<end;i++){
+      const r = rows[i];
+      let cells = '';
+      for (let j=0;j<COLS.length;j++){
+        const v = r[j];
+        if (NUM.has(j)) cells += `<div class="c num ${v<0?'neg':''}">${typeof v==='number'?fmtMoney(v):''}</div>`;
+        else cells += `<div class="c ${CODE.has(j)?'code':''}" title="${esc(v)}">${esc(v)}</div>`;
+      }
+      buf.push(`<div class="vrow" data-i="${i}" style="top:${i*ROW_H}px;height:${ROW_H}px;grid-template-columns:${t}">${cells}</div>`);
+    }
+    body.innerHTML = buf.join('');
+    body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(rows[+el.dataset.i], el));
+  };
+  box.onscroll = draw;
+  draw();
+
+  let sa=0, sb=0;
+  for (const r of rows){ sa+=r[9]; sb+=r[11]; }
+  const foot = host.querySelectorAll('.tfoot span');
+  foot[0].textContent = `${fmtInt(rows.length)} แถว · คลิกแถวเพื่อดูรายละเอียด`;
+  foot[1].textContent = `รวมมูลค่าการได้มา ${fmtMoney(sa)} · มูลค่าตามบัญชี ${fmtMoney(sb)}`;
+}
+
+/* ---------- quality ---------- */
+let ISSUES = [];
+function renderQA(){
+  ISSUES = [
+    ['ไม่พบใน HUB2',
+     `จับคู่ ASS.NO. กับไฟล์ HUB2 ไม่ได้ ทำให้คอลัมน์ Status, Status Name, คลาส และชื่อคลาส ว่างทั้งหมด`,
+     report.noHub2, 'ไม่พบใน HUB2'],
+    ['Pers.No. ไม่มีในทะเบียน HR',
+     `พบ ${fmtInt(report.hrCodes.length)} รหัสพนักงานที่ไม่มีในไฟล์ HR (${report.hrCodes.slice(0,8).join(', ')}${report.hrCodes.length>8?' …':''}) ชื่อพนักงาน ตำแหน่ง และ ศ.ต้นทุน HR จะว่าง`,
+     report.badHr, 'Pers.No. ไม่พบใน HR'],
+    ['ศูนย์ต้นทุนไม่มีในตารางอ้างอิง',
+     `พบ ${fmtInt(report.ccCodes.length)} รหัส (${report.ccCodes.join(', ')}) ที่ไม่มีในตาราง master ทำให้ชื่อ ศ.ต้นทุน ว่าง`,
+     report.badCc, 'ศูนย์ต้นทุนไม่พบใน master'],
+    ['ยังไม่ระบุผู้ครอบครอง',
+     `ไม่มี Pers.No. มาจากไฟล์ HUB1 ตั้งแต่ต้น จึงไม่ทราบว่าใครถือครองสินทรัพย์`,
+     report.noOwner, 'ไม่ระบุผู้ครอบครอง'],
+    ['มูลค่าตามบัญชีเป็นศูนย์',
+     `มีมูลค่าการได้มาแต่ตัดค่าเสื่อมหมดแล้ว ควรตรวจว่ายังใช้งานอยู่จริงหรือควรจำหน่าย`,
+     report.zeroBook, 'มูลค่าตามบัญชีเป็นศูนย์'],
+  ].filter(x => x[2].length);
+
+  if (!ISSUES.length){
+    $('#issues').innerHTML =
+      `<div class="issue good"><div class="ihead"><div class="ic">✓</div>
+       <div><h4>ไม่พบปัญหา</h4><p>ทุกแถวจับคู่ครบและมีข้อมูลอ้างอิงสมบูรณ์</p></div></div></div>`;
+    $('#tabIssues').textContent = '';
+    return;
+  }
+
+  $('#issues').innerHTML = ISSUES.map((x,i) => `
     <div class="issue">
-      <div class="ic">!</div>
-      <div style="flex:1"><h4>${esc(x[0])}</h4><p>${esc(x[1])}</p></div>
-      ${x[2] ? `<button class="btn btn-g btn-s" data-q="${i}">ดาวน์โหลดรายการ</button>` : ''}
-    </div>`).join('')
-    : `<div class="issue good"><div class="ic">✓</div><div><h4>ไม่พบปัญหา</h4><p>ทุกแถวจับคู่ครบและมีข้อมูลอ้างอิงสมบูรณ์</p></div></div>`;
-  $('#issues').querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
-    const x = list[+b.dataset.q];
-    dl(new Blob(['\uFEFF' + x[2].join('\n')], {type:'text/csv;charset=utf-8'}), x[3]);
-    toast('ดาวน์โหลดรายการแล้ว', 'ok');
+      <div class="ihead">
+        <div class="ic">!</div>
+        <div style="flex:1;min-width:230px">
+          <h4>${esc(x[0])} <span class="n">${fmtInt(x[2].length)} แถว</span></h4>
+          <p>${esc(x[1])}</p>
+        </div>
+        <button class="btn btn-g btn-s" data-t="${i}">ดูตาราง</button>
+        <button class="btn btn-a btn-s" data-x="${i}">Excel</button>
+        <button class="btn btn-g btn-s" data-c="${i}">CSV</button>
+      </div>
+      <div class="ibody" id="ib${i}"></div>
+    </div>`).join('');
+
+  $('#issues').querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.t, host = $('#ib'+i);
+    const open = host.classList.toggle('on');
+    b.textContent = open ? 'ซ่อนตาราง' : 'ดูตาราง';
+    if (open && !host.dataset.built){ mountVT(host, ISSUES[i][2]); host.dataset.built = '1'; }
   });
-  $('#tabIssues').textContent = list.filter(x => x[2]).length ? list.length : '';
+  $('#issues').querySelectorAll('[data-x]').forEach(b => b.onclick = () => issueXlsx(+b.dataset.x));
+  $('#issues').querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+    const x = ISSUES[+b.dataset.c];
+    dl(csvOf(COLS, x[2]), `Asset-Hub-${x[3]}-${stamp()}.csv`);
+    toast('ดาวน์โหลด CSV แล้ว', 'ok');
+  });
+  $('#tabIssues').textContent = ISSUES.length;
+}
+
+async function issueXlsx(i){
+  const x = ISSUES[i];
+  toast('กำลังสร้างไฟล์ Excel …');
+  await yieldUI();
+  try{
+    const ws = sheetOf(COLS, x[2], [9,10,11]);
+    ws['!cols'] = W.map(w => ({wch: Math.round(w/7)}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data');
+    XLSX.writeFile(wb, `Asset-Hub-${x[3]}-${stamp()}.xlsx`, {compression:true});
+    toast('ดาวน์โหลด Excel แล้ว', 'ok');
+  }catch(e){ toast('สร้าง Excel ไม่สำเร็จ ลอง CSV แทน', 'err'); }
 }
 
 /* ---------- export ---------- */
