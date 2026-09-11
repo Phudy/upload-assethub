@@ -1765,22 +1765,29 @@ function toBase64(u8){
   for (let i=0;i<u8.length;i+=CH) s += String.fromCharCode.apply(null, u8.subarray(i, i+CH));
   return btoa(s);
 }
-function postXhr(url, payload, onUp){
-  return new Promise((res, rej) => {
-    const x = new XMLHttpRequest();
-    x.open('POST', url, true);
-    x.upload.onprogress = e => { if (e.lengthComputable && onUp) onUp(e.loaded / e.total); };
-    x.onload = () => {
-      let j;
-      try { j = JSON.parse(x.responseText); }
-      catch(e){ return rej(new Error('ตอบกลับผิดรูปแบบ · ตรวจว่า Deploy แบบ Anyone แล้วหรือยัง')); }
-      j.ok ? res(j) : rej(new Error(j.error || 'Apps Script แจ้งข้อผิดพลาด'));
-    };
-    x.onerror = () => { const e = new Error(CORS_HELP); e.cors = true; rej(e); };
-    x.ontimeout = () => rej(new Error('หมดเวลารอ Apps Script'));
-    x.timeout = 15 * 60 * 1000;
-    x.send(JSON.stringify(payload));
-  });
+/**
+ * ส่ง payload ก้อนใหญ่ด้วย fetch เท่านั้น
+ * ห้ามใช้ xhr.upload.onprogress เพราะการผูก event บน XMLHttpRequestUpload
+ * ทำให้คำขอหลุดจากสถานะ simple request แล้วเบราว์เซอร์จะยิง OPTIONS ก่อน
+ * ซึ่ง Apps Script ตอบไม่ได้ คำขอจึงล้มทันที
+ */
+async function postBig(url, payload){
+  let res;
+  try {
+    res = await fetch(url, {method:'POST', body: JSON.stringify(payload), redirect:'follow'});
+  } catch(e){
+    const err = new Error(CORS_HELP); err.cors = true; throw err;
+  }
+  const txt = await res.text();
+  let j;
+  try { j = JSON.parse(txt); }
+  catch(e){ throw new Error('ตอบกลับผิดรูปแบบ · ตรวจว่า Deploy แบบ Anyone แล้วหรือยัง'); }
+  if (!j.ok){
+    if (/ไม่รู้จักคำสั่ง/.test(j.error || ''))
+      throw new Error('สคริปต์ยังเป็นเวอร์ชันเก่า ไม่รู้จักโหมดเร็ว · ไปที่ Deploy → Manage deployments → Version = New version');
+    throw new Error(j.error || 'Apps Script แจ้งข้อผิดพลาด');
+  }
+  return j;
 }
 
 /** ส่งทั้งชุดครั้งเดียว: TSV → gzip → base64 → Apps Script เขียนลงชีตฝั่งเซิร์ฟเวอร์ */
@@ -1800,7 +1807,7 @@ async function pushBulk(url, token, sheet, rows, me, blind){
   stepState(1,'run');
   setProg(0.12, 'กำลังอัปโหลด');
   const payload = {token, sheet, mode:'bulk', user: me, gz: b64, num: NUMCOLS, money: MONEYCOLS};
-  let fin;
+
   if (blind){
     await fetch(url, {method:'POST', mode:'no-cors', body: JSON.stringify(payload)});
     stepState(1,'ok'); stepState(2,'ok');
@@ -1808,19 +1815,32 @@ async function pushBulk(url, token, sheet, rows, me, blind){
     return {ok:true, unverified:true};
   }
 
-  let creep = null;
-  fin = await postXhr(url, payload, p => {
-    setProg(0.12 + p*0.5, `กำลังอัปโหลด ${Math.round(p*100)}%`);
-    $('#mRows').textContent = `${(b64.length*p/1048576).toFixed(1)} / ${(b64.length/1048576).toFixed(1)} MB`;
-    if (p >= 1 && !creep){
-      stepState(1,'ok'); stepState(2,'run');
-      gsLog('อัปโหลดครบแล้ว กำลังรอ Google เขียนลงชีต');
-      $('#mRows').textContent = `${fmtInt(rows.length)} แถว`;
-      let q = 0.62;
-      creep = setInterval(() => { q = Math.min(0.96, q + (0.96-q)*0.06); setProg(q, 'Google กำลังเขียนลงชีต'); }, 600);
+  // เบราว์เซอร์ไม่ยอมให้อ่านความคืบหน้าขาขึ้นโดยไม่ทำให้คำขอต้อง preflight
+  // จึงประเมินจากเวลาที่ผ่านไปเทียบกับขนาดไฟล์แทน
+  const mb = b64.length / 1048576;
+  const upSec = Math.max(4, mb * 2.2);
+  const t0 = performance.now();
+  let phase = 'up';
+  const tick = setInterval(() => {
+    const el = (performance.now() - t0) / 1000;
+    if (phase === 'up'){
+      const p = Math.min(0.98, el / upSec);
+      setProg(0.12 + p * 0.5, `กำลังอัปโหลด ${(mb*p).toFixed(1)} / ${mb.toFixed(1)} MB`);
+      if (p >= 0.98){
+        phase = 'srv';
+        stepState(1,'ok'); stepState(2,'run');
+        gsLog('อัปโหลดเสร็จ กำลังรอ Google เขียนลงชีต');
+      }
+    } else {
+      const q = Number($('#mPct').textContent) / 100;
+      setProg(Math.min(0.96, q + (0.96 - q) * 0.05), 'Google กำลังเขียนลงชีต');
     }
-  });
-  if (creep) clearInterval(creep);
+  }, 400);
+
+  let fin;
+  try { fin = await postBig(url, payload); }
+  finally { clearInterval(tick); }
+
   stepState(1,'ok'); stepState(2,'ok');
   setProg(1);
   return fin;
