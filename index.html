@@ -846,9 +846,31 @@ function doPost(e) {
   }
 }
 
-/** เปิดด้วยเบราว์เซอร์เพื่อทดสอบว่า deploy สำเร็จ */
+/**
+ * เปิดด้วยเบราว์เซอร์เพื่อทดสอบว่า deploy สำเร็จ
+ * คืนลายนิ้วมือของ SECRET ที่เวอร์ชันนี้ถืออยู่ ไม่ได้คืนตัวรหัสจริง
+ * แอปจะคำนวณลายนิ้วมือของรหัสที่คุณกรอกด้วยสูตรเดียวกันแล้วเทียบให้
+ */
 function doGet() {
-  return reply({ ok: true, message: 'พร้อมรับข้อมูล' });
+  return reply({
+    ok: true,
+    message: 'พร้อมรับข้อมูล',
+    api: 2,                         // 2 = รองรับโหมดเร็ว bulk
+    secretLen: String(SECRET).length,
+    secretFp: fingerprint(String(SECRET)),
+    isDefault: String(SECRET) === 'เปลี่ยนรหัสนี้ก่อนใช้งาน'
+  });
+}
+
+/** FNV-1a 32 บิต เขียนให้เหมือนกันทั้งฝั่งสคริปต์และฝั่งเบราว์เซอร์ */
+function fingerprint(s) {
+  const bytes = Utilities.newBlob(s).getBytes();   // UTF-8
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) {
+    h = (h ^ (bytes[i] & 0xff)) >>> 0;
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return ('0000000' + h.toString(16)).slice(-8);
 }
 
 /** ล้างชีตเดิม ขยายขนาดให้พอ แล้วเขียนหัวตาราง */
@@ -1694,6 +1716,16 @@ async function gsPostRetry(url, payload, label){
   }
 }
 
+function fingerprint(str){
+  const bytes = new TextEncoder().encode(str);
+  let h = 0x811c9dc5;
+  for (let i=0;i<bytes.length;i++){
+    h = (h ^ bytes[i]) >>> 0;
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return ('0000000' + h.toString(16)).slice(-8);
+}
+
 async function gsTest(){
   const url = $('#gsUrl').value.trim();
   const out = (m, c) => { const el = $('#cfgLog'); el.className = 'log' + (c==='err'?' err':''); el.textContent = m; };
@@ -1702,8 +1734,28 @@ async function gsTest(){
   out('กำลังทดสอบ …');
   try{
     const j = JSON.parse(await (await fetch(url)).text());
-    out(j.ok ? 'เชื่อมต่อสำเร็จ พร้อมนำเข้า' : ('สคริปต์ตอบ: ' + (j.error||'')), j.ok ? '' : 'err');
-    if (j.ok) fetchLast();
+    if (!j.ok){ out('สคริปต์ตอบ: ' + (j.error||''), 'err'); toast('สคริปต์ตอบกลับผิดพลาด','err'); return; }
+
+    const mine = $('#gsToken').value.trim();
+    const notes = [];
+    if (j.secretFp === undefined){
+      notes.push('สคริปต์ที่ deploy ไว้เป็นเวอร์ชันเก่า ยังไม่รองรับโหมดเร็วและการเทียบรหัสลับ · ไปที่ Deploy → Manage deployments → Version = New version');
+    } else if (j.isDefault){
+      notes.push('สคริปต์ยังใช้ SECRET ค่าเริ่มต้นที่ยังไม่ได้แก้');
+    } else if (!mine){
+      notes.push('ยังไม่ได้กรอกรหัสลับในแอป');
+    } else if (fingerprint(mine) === j.secretFp){
+      notes.push('รหัสลับตรงกับที่ deploy ไว้');
+    } else {
+      notes.push(`รหัสลับไม่ตรงกับเวอร์ชันที่ deploy อยู่ · ในสคริปต์ยาว ${j.secretLen} ตัวอักษร ที่คุณกรอกยาว ${mine.length} ตัวอักษร`);
+      notes.push(j.secretLen === mine.length
+        ? 'ยาวเท่ากันแต่ไม่ตรง อาจมีอักขระต่างกันหรือ deploy ยังเป็นเวอร์ชันเก่า'
+        : 'ความยาวไม่เท่ากัน แปลว่าคนละรหัสแน่นอน');
+    }
+    const bad = /ไม่ตรง|เก่า|ค่าเริ่มต้น|ยังไม่ได้กรอก/.test(notes[0]);
+    out('เชื่อมต่อสำเร็จ · ' + notes.join(' · '), bad ? 'err' : '');
+    toast(bad ? 'เชื่อมต่อได้ แต่รหัสลับมีปัญหา' : 'พร้อมนำเข้า', bad ? 'err' : 'ok');
+    fetchLast();
     toast(j.ok ? 'เชื่อมต่อได้' : 'สคริปต์ตอบกลับผิดพลาด', j.ok ? 'ok' : 'err');
   }catch(e){
     out(CORS_HELP + ' · ลองเปิด URL ในแท็บใหม่ ถ้าขึ้น ok:true แปลว่าติดข้อ (1) ให้ติ๊กส่งแบบไม่รอผลตอบกลับ หรือเสิร์ฟไฟล์ผ่าน http','err');
