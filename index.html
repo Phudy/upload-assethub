@@ -929,7 +929,7 @@ function bulk(ss, sh, req) {
   sh.setFrozenRows(1);
 
   // เขียนทีละบล็อกใหญ่ เพื่อไม่ให้กินหน่วยความจำเกิน
-  const BLOCK = 15000;
+  const BLOCK = 25000;   // แถวต่อการเขียนหนึ่งครั้ง ลดลงถ้าเจอ error หน่วยความจำ
   for (var s = 1; s <= total; s += BLOCK) {
     var e = Math.min(total, s + BLOCK - 1);
     var block = [];
@@ -963,10 +963,17 @@ function finish(ss, sh, req) {
   if (extra > 0) sh.deleteRows(last + 1, extra);
 
   const money = (req.money && req.money.length) ? req.money : MONEY_COLS;
-  if (total > 0) {
-    money.forEach(function (c) {
-      sh.getRange(2, c, total, 1).setNumberFormat('#,##0.00').setHorizontalAlignment('right');
-    });
+  if (total > 0 && money.length) {
+    // ถ้าคอลัมน์ยอดเงินติดกัน สั่งครั้งเดียวจบ เร็วกว่าสั่งทีละคอลัมน์
+    const lo = Math.min.apply(null, money);
+    const hi = Math.max.apply(null, money);
+    if (hi - lo + 1 === money.length) {
+      sh.getRange(2, lo, total, money.length).setNumberFormat('#,##0.00').setHorizontalAlignment('right');
+    } else {
+      money.forEach(function (c) {
+        sh.getRange(2, c, total, 1).setNumberFormat('#,##0.00').setHorizontalAlignment('right');
+      });
+    }
   }
 
   const at = new Date();
@@ -1665,6 +1672,8 @@ function setSteps(list){
 }
 function stepState(i, s){
   if (!gsSteps[i]) return;
+  if (gsSteps[i].s === s) return;            // กันการประทับเวลาซ้ำ
+  if (gsSteps[i].s === 'ok' && s === 'ok') return;
   gsSteps[i].s = s;
   if (s !== 'wait' && s !== 'run') gsSteps[i].ms = performance.now() - gsT0;
   drawSteps();
