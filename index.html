@@ -269,6 +269,122 @@ input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
 .ibody.on{display:block}
 .ibody .tfoot{margin-top:9px}
 
+/* ---------- portal button ---------- */
+.btn-portal{
+  position:relative;display:inline-flex;align-items:center;gap:10px;
+  padding:11px 20px;border-radius:99px;text-decoration:none;
+  font-size:13.5px;font-weight:600;isolation:isolate;overflow:hidden;
+  transition:transform .18s, box-shadow .18s
+}
+.btn-portal::before{
+  content:'';position:absolute;inset:-160%;z-index:-2;
+  background:conic-gradient(from 0deg,#22D3EE,#A855F7,#F59E0B,#34D399,#22D3EE);
+  animation:orbit 4.5s linear infinite
+}
+.btn-portal::after{
+  content:'';position:absolute;inset:1.6px;z-index:-1;border-radius:99px;
+  background:var(--surface)
+}
+@keyframes orbit{to{transform:rotate(360deg)}}
+.btn-portal:hover{transform:translateY(-2px);box-shadow:0 14px 32px -12px rgba(168,85,247,.95)}
+.btn-portal:active{transform:translateY(0)}
+.btn-portal .lbl{
+  background:linear-gradient(92deg,var(--brand2) 10%,#22D3EE 90%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap
+}
+.btn-portal .dot{
+  width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none;
+  animation:ping 1.9s ease-out infinite
+}
+@keyframes ping{
+  0%{box-shadow:0 0 0 0 rgba(52,211,153,.55)}
+  70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}
+  100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}
+}
+.btn-portal .arw{display:grid;place-items:center;color:var(--brand2);transition:transform .2s}
+.btn-portal .arw svg{width:14px;height:14px}
+.btn-portal:hover .arw{transform:translate(3px,-3px)}
+.mfoot{flex-wrap:wrap}
+
+/* ---------- data date picker ---------- */
+.ddfield{position:relative}
+.ddbtn{
+  width:100%;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;
+  background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 13px;
+  color:var(--text);transition:.16s
+}
+.ddbtn:hover{border-color:var(--brand)}
+.ddbtn .ddcal{
+  width:32px;height:32px;border-radius:9px;flex:none;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--brand) 15%,transparent);color:var(--brand)
+}
+.ddbtn .ddcal svg{width:17px;height:17px}
+.ddtxt{flex:1;min-width:0;line-height:1.3}
+.ddtxt b{display:block;font-size:14px;font-weight:600}
+.ddtxt em{display:block;font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.ddchev{color:var(--muted);font-size:12px;transition:transform .2s}
+.ddfield.open .ddchev{transform:rotate(180deg)}
+.ddinput{display:none}
+.ddfield.manual .ddbtn{display:none}
+.ddfield.manual .ddinput{display:block}
+
+.ddpop{
+  position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:45;display:none;
+  background:var(--surface);border:1px solid var(--line2);border-radius:16px;padding:14px;
+  box-shadow:var(--shadow);overflow:hidden
+}
+.ddpop::before{
+  content:'';position:absolute;left:-20%;top:-70px;width:140%;height:150px;pointer-events:none;
+  background:radial-gradient(circle at 30% 60%,rgba(168,85,247,.30),transparent 60%),
+             radial-gradient(circle at 72% 45%,rgba(34,211,238,.22),transparent 60%);
+  filter:blur(30px)
+}
+.ddfield.open .ddpop{display:block;animation:ddin .2s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes ddin{from{opacity:0;transform:translateY(-6px)}}
+.ddhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;position:relative}
+.ddnav{
+  width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:transparent;
+  color:var(--muted);cursor:pointer;font-size:17px;line-height:1;transition:.15s
+}
+.ddnav:hover{border-color:var(--brand);color:var(--brand)}
+.ddyear{display:flex;align-items:baseline;gap:6px}
+.ddyear b{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:-.02em}
+.ddyear em{font-style:normal;font-size:11px;color:var(--muted)}
+
+.ddgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:relative}
+.ddm{
+  border:1px solid var(--line);background:var(--surface2);border-radius:10px;padding:9px 4px;
+  cursor:pointer;color:var(--text);text-align:center;line-height:1.25;transition:.14s;
+  animation:ddpop .26s backwards
+}
+@keyframes ddpop{from{opacity:0;transform:scale(.9)}}
+.ddm:hover{border-color:var(--brand);transform:translateY(-1px)}
+.ddm b{display:block;font-size:13px;font-weight:500}
+.ddm em{display:block;font-style:normal;font-family:var(--mono);font-size:10px;color:var(--faint)}
+.ddm.on{
+  border-color:transparent;color:#fff;
+  background:linear-gradient(125deg,#7C3AED,#A855F7 55%,#22D3EE);
+  box-shadow:0 6px 16px -8px rgba(139,92,246,1)
+}
+.ddm.on em{color:rgba(255,255,255,.82)}
+.ddm.now{border-color:var(--brand2)}
+
+.ddfoot{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);position:relative}
+.ddquick{display:flex;gap:6px}
+.ddq{
+  background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:99px;
+  padding:4px 11px;font-size:11.5px;cursor:pointer;transition:.15s
+}
+.ddq:hover{border-color:var(--brand);color:var(--brand)}
+.ddseg{display:flex;background:var(--surface2);border:1px solid var(--line);border-radius:99px;padding:2px;margin-left:auto}
+.ddseg button{
+  background:transparent;border:none;color:var(--muted);border-radius:99px;padding:4px 11px;
+  font-size:11.5px;font-family:var(--mono);cursor:pointer;transition:.15s;white-space:nowrap
+}
+.ddseg button.on{background:var(--brand);color:#fff}
+.ddtype{background:none;border:none;color:var(--muted);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:4px 2px}
+.ddtype:hover{color:var(--brand)}
+
 /* ---------- settings ---------- */
 .gsgrid{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:14px;align-items:start}
 .chk{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);cursor:pointer}
@@ -508,9 +624,41 @@ footer code{font-family:var(--mono)}
     <div class="panel">
       <h3>รวมข้อมูล</h3>
       <p class="sub">ต่อ HUB2 และ HR เข้ากับ HUB1 ด้วย ASS.NO. และ Pers.No.</p>
-      <div class="field">
-        <label for="dataDate">Data Date · เติมลงทุกแถว</label>
-        <input type="text" id="dataDate" placeholder="เช่น 31/7/2569">
+      <div class="field ddfield">
+        <label for="dataDate">Data Date · วันสิ้นเดือนที่ใช้เป็นข้อมูล ณ วันนั้น</label>
+        <button class="ddbtn" id="ddBtn" type="button">
+          <span class="ddcal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>
+            </svg>
+          </span>
+          <span class="ddtxt">
+            <b id="ddLong">—</b>
+            <em id="ddRaw"></em>
+          </span>
+          <span class="ddchev">▾</span>
+        </button>
+        <input type="text" id="dataDate" class="ddinput" placeholder="เช่น 31/7/2569">
+
+        <div class="ddpop" id="ddPop">
+          <div class="ddhead">
+            <button type="button" class="ddnav" id="ddPrev" aria-label="ปีก่อนหน้า">‹</button>
+            <span class="ddyear"><b id="ddYear">2569</b><em>พ.ศ.</em></span>
+            <button type="button" class="ddnav" id="ddNext" aria-label="ปีถัดไป">›</button>
+          </div>
+          <div class="ddgrid" id="ddGrid"></div>
+          <div class="ddfoot">
+            <div class="ddquick">
+              <button type="button" class="ddq" data-q="prev">สิ้นเดือนที่แล้ว</button>
+              <button type="button" class="ddq" data-q="this">สิ้นเดือนนี้</button>
+            </div>
+            <div class="ddseg" id="ddSeg">
+              <button type="button" data-f="slash" class="on">31/7/2569</button>
+              <button type="button" data-f="long">31 กรกฎาคม 2569</button>
+            </div>
+            <button type="button" class="ddtype" id="ddType">พิมพ์เอง</button>
+          </div>
+        </div>
       </div>
       <button class="btn btn-p" id="run" style="width:100%;justify-content:center" disabled>รวมข้อมูล</button>
       <div class="pbar"><i id="pb"></i></div>
@@ -647,6 +795,10 @@ footer code{font-family:var(--mono)}
             <input type="text" id="gsSheet" value="Data">
           </div>
           <div class="field">
+            <label for="gsHub">ลิงก์แอป PEAC3 Asset Hub · ปุ่มตรวจผลหลังนำเข้าเสร็จ</label>
+            <input type="text" id="gsHub" placeholder="https://peaasset-hub.vercel.app/">
+          </div>
+          <div class="field">
             <label for="gsLink">ลิงก์ Google Sheet · ไม่ใส่ก็ได้ ใช้สำหรับปุ่มเปิดชีตหลังนำเข้าเสร็จ</label>
             <input type="text" id="gsLink" placeholder="https://docs.google.com/spreadsheets/d/…">
           </div>
@@ -758,6 +910,15 @@ footer code{font-family:var(--mono)}
     <div class="mfoot">
       <button class="btn btn-g" id="mCancel">ยกเลิก</button>
       <a class="btn btn-g" id="mOpen" target="_blank" rel="noopener" style="display:none">เปิด Google Sheet</a>
+      <a class="btn-portal" id="mHub" target="_blank" rel="noopener" style="display:none">
+        <span class="dot"></span>
+        <span class="lbl">ตรวจผลใน PEAC3 Asset Hub</span>
+        <span class="arw">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 17 17 7M9 7h8v8"/>
+          </svg>
+        </span>
+      </a>
       <button class="btn btn-p" id="mDone" style="display:none">เสร็จสิ้น</button>
     </div>
   </div>
@@ -1957,6 +2118,7 @@ async function pushToSheet(){
   $('#mCancel').style.display = fast ? 'none' : '';
   $('#mDone').style.display = 'none';
   $('#mOpen').style.display = 'none';
+  $('#mHub').style.display = 'none';
   $('#mMeta').style.display = fast ? 'none' : '';
   setSteps(fast
     ? ['เตรียมและบีบอัดข้อมูล', 'อัปโหลดขึ้น Apps Script', 'Google เขียนลงชีต']
@@ -1982,6 +2144,8 @@ async function pushToSheet(){
     if (!blind && fin) showLast({at: fin.at || new Date().toISOString(), user: fin.user || me || 'ไม่ระบุชื่อ', rows: rows.length});
     const link = $('#gsLink').value.trim();
     if (/^https?:\/\//.test(link)){ $('#mOpen').href = link; $('#mOpen').style.display = ''; }
+    const hub = $('#gsHub').value.trim() || HUB_URL;
+    if (/^https?:\/\//.test(hub)){ $('#mHub').href = hub; $('#mHub').style.display = ''; }
     toast('นำเข้า Google Sheet เสร็จแล้ว', 'ok');
   };
   try{
@@ -2040,7 +2204,8 @@ async function pushToSheet(){
 
 /* ---------- settings persistence ---------- */
 const LS_KEY = 'assethub.settings.v1';
-const CFG_FIELDS = [['gsUrl','url'],['gsToken','token'],['gsSheet','sheet'],['gsLink','link'],['gsUser','user']];
+const CFG_FIELDS = [['gsUrl','url'],['gsToken','token'],['gsSheet','sheet'],['gsLink','link'],['gsUser','user'],['gsHub','hub']];
+const HUB_URL = 'https://peaasset-hub.vercel.app/';   // ค่าเริ่มต้นของแอปตรวจผล
 const NUMCOLS = [3,4,9,10,11,12];        // คอลัมน์ (นับจาก 0) ที่ต้องเก็บเป็นตัวเลขในชีต
 const MONEYCOLS = [10,11,12];            // คอลัมน์ (นับจาก 1) J K L ที่ต้องจัดรูปแบบยอดเงิน
 const RECENT_HOURS = 6;   // เตือนถ้ามีคนนำเข้าไปแล้วภายในกี่ชั่วโมง
@@ -2058,6 +2223,7 @@ function loadCfg(){
   catch(e){ o = {}; }
   CFG_FIELDS.forEach(([id,k]) => { if (o[k] != null) $('#'+id).value = o[k]; });
   if (!$('#gsSheet').value) $('#gsSheet').value = GS_CONFIG.sheet || 'Data';
+  if (!$('#gsHub').value) $('#gsHub').value = HUB_URL;
   if (!$('#gsUrl').value && GS_CONFIG.url) $('#gsUrl').value = GS_CONFIG.url;
   if (!$('#gsToken').value && GS_CONFIG.token) $('#gsToken').value = GS_CONFIG.token;
   $('#gsNoCors').checked = !!o.noCors;
@@ -2078,6 +2244,77 @@ function setLock(v, silent){
   if (!silent){ saveCfg(); toast(v ? 'ล็อกค่าตั้งค่าแล้ว' : 'ปลดล็อกแล้ว แก้ไขได้', 'ok'); }
 }
 function goTab(name){ $$('.tab').find(t => t.dataset.view === name)?.click(); }
+
+/* ---------- data date picker ---------- */
+const TH_MONTH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const TH_ABBR  = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.',
+                  'ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const ddState = {be: 0, m: 0, fmt: 'slash', view: 0};
+
+/** จำนวนวันของเดือน m (0-11) ในปี พ.ศ. be — รองรับปีอธิกสุรทิน */
+const lastDay = (be, m) => new Date(be - 543, m + 1, 0).getDate();
+
+function ddFormat(be, m, fmt){
+  const d = lastDay(be, m);
+  return fmt === 'long' ? `${d} ${TH_MONTH[m]} ${be}` : `${d}/${m+1}/${be}`;
+}
+function ddApply(){
+  const {be, m, fmt} = ddState;
+  const raw = ddFormat(be, m, fmt);
+  $('#dataDate').value = raw;
+  $('#ddLong').textContent = ddFormat(be, m, 'long');
+  $('#ddRaw').textContent = fmt === 'long' ? 'บันทึกเป็น ' + raw : raw;
+}
+function ddRenderGrid(){
+  const now = new Date();
+  const nowBe = now.getFullYear() + 543, nowM = now.getMonth();
+  $('#ddYear').textContent = ddState.view;
+  $('#ddGrid').innerHTML = TH_ABBR.map((ab, i) => {
+    const on = ddState.view === ddState.be && i === ddState.m;
+    const isNow = ddState.view === nowBe && i === nowM;
+    return `<button type="button" class="ddm ${on?'on':''} ${isNow?'now':''}" data-m="${i}"
+      style="animation-delay:${i*18}ms"><b>${ab}</b><em>${lastDay(ddState.view, i)} วัน</em></button>`;
+  }).join('');
+  $('#ddGrid').querySelectorAll('[data-m]').forEach(b => b.onclick = () => {
+    ddState.m = +b.dataset.m; ddState.be = ddState.view;
+    ddApply(); ddRenderGrid();
+    setTimeout(ddClose, 160);
+  });
+}
+function ddOpen(){ $('.ddfield').classList.add('open'); ddState.view = ddState.be; ddRenderGrid(); }
+function ddClose(){ $('.ddfield').classList.remove('open'); }
+function ddSetMonthsAgo(n){
+  const d = new Date();
+  d.setDate(1); d.setMonth(d.getMonth() - n);
+  ddState.be = d.getFullYear() + 543;
+  ddState.m = d.getMonth();
+  ddState.view = ddState.be;
+  ddApply(); ddRenderGrid();
+}
+
+function initDatePicker(){
+  ddSetMonthsAgo(1);                 // ตั้งต้นที่สิ้นเดือนที่ผ่านมา
+  $('#ddBtn').onclick = e => { e.stopPropagation(); $('.ddfield').classList.contains('open') ? ddClose() : ddOpen(); };
+  $('#ddPrev').onclick = () => { ddState.view--; ddRenderGrid(); };
+  $('#ddNext').onclick = () => { ddState.view++; ddRenderGrid(); };
+  $('#ddPop').addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', e => { if (!e.target.closest('.ddfield')) ddClose(); });
+  $('#ddSeg').querySelectorAll('[data-f]').forEach(b => b.onclick = () => {
+    $('#ddSeg').querySelectorAll('[data-f]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    ddState.fmt = b.dataset.f;
+    ddApply();
+  });
+  $('#ddPop').querySelectorAll('[data-q]').forEach(b => b.onclick = () => ddSetMonthsAgo(b.dataset.q === 'prev' ? 1 : 0));
+  $('#ddType').onclick = () => {
+    const f = $('.ddfield');
+    const manual = f.classList.toggle('manual');
+    ddClose();
+    if (manual){ $('#dataDate').focus(); $('#ddType').textContent = 'กลับไปเลือกเดือน'; }
+    else { $('#ddType').textContent = 'พิมพ์เอง'; ddApply(); }
+  };
+}
 
 /* ---------- wiring ---------- */
 /* ---------- wiring ---------- */
@@ -2173,6 +2410,7 @@ $('#pXlsx').onclick = () => {
   toast('ดาวน์โหลดสรุปแล้ว','ok');
 };
 
+initDatePicker();
 loadCfg();
 readCfgFromHash();
 setTimeout(fetchLast, 400);
