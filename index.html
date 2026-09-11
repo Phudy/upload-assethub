@@ -276,6 +276,7 @@ input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
 .cfghead h3{margin:0 0 2px}
 .withbtn{display:flex;gap:7px}
 .withbtn input{flex:1}
+.masked{-webkit-text-security:disc;text-security:disc}
 .peek{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:0 12px;font-size:12px;cursor:pointer}
 .peek:hover{color:var(--brand);border-color:var(--brand)}
 .panel.locked input,.panel.locked .peek{opacity:.62;pointer-events:none}
@@ -630,7 +631,7 @@ footer code{font-family:var(--mono)}
           <div class="field">
             <label for="gsToken">รหัสลับ · ตรงกับ SECRET ในสคริปต์</label>
             <div class="withbtn">
-              <input type="password" id="gsToken">
+              <input type="text" id="gsToken" class="masked" autocomplete="off" autocapitalize="off" spellcheck="false" name="ah-token-x">
               <button class="peek" id="peek" title="แสดง/ซ่อน">ดู</button>
             </div>
           </div>
@@ -648,6 +649,8 @@ footer code{font-family:var(--mono)}
           </label>
           <div style="display:flex;gap:9px;flex-wrap:wrap">
             <button class="btn btn-g" id="gsTest">ทดสอบการเชื่อมต่อ</button>
+            <button class="btn btn-g" id="cfgCopy">คัดลอกค่าตั้งค่า</button>
+            <button class="btn btn-g" id="cfgPaste">วางค่าตั้งค่า</button>
             <button class="btn btn-g" id="cfgClear">ล้างค่าที่บันทึก</button>
           </div>
           <div class="log" id="cfgLog"></div>
@@ -1680,7 +1683,10 @@ async function pushToSheet(){
     if (i >= 0) stepState(i,'fail');
     $('#rFill').className = 'rfill fail';
     $('#mStage').textContent = gsAbort ? 'ยกเลิกแล้ว' : 'นำเข้าไม่สำเร็จ';
-    $('#mSub').textContent = e.message;
+    const n = $('#gsToken').value.trim().length;
+    $('#mSub').textContent = /รหัสลับ/.test(e.message)
+      ? `${e.message} · รหัสลับที่ส่งไปยาว ${n} ตัวอักษร ตรวจที่แท็บตั้งค่าว่าตรงกับ SECRET ในสคริปต์`
+      : e.message;
     gsLog(e.message, 'err');
     toast(gsAbort ? 'ยกเลิกการนำเข้า' : 'นำเข้าไม่สำเร็จ', 'err');
   }
@@ -1826,9 +1832,26 @@ CFG_FIELDS.forEach(([id]) => $('#'+id).addEventListener('input', () => { clearTi
 $('#gsNoCors').addEventListener('change', saveCfg);
 $('#lockBtn').onclick = () => setLock(!cfgLocked);
 $('#peek').onclick = () => {
-  const el = $('#gsToken');
-  el.type = el.type === 'password' ? 'text' : 'password';
-  $('#peek').textContent = el.type === 'password' ? 'ดู' : 'ซ่อน';
+  const hidden = $('#gsToken').classList.toggle('masked');
+  $('#peek').textContent = hidden ? 'ดู' : 'ซ่อน';
+};
+$('#cfgCopy').onclick = async () => {
+  const o = {}; CFG_FIELDS.forEach(([id,k]) => o[k] = $('#'+id).value);
+  o.noCors = $('#gsNoCors').checked;
+  const code = 'AH1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+  try { await navigator.clipboard.writeText(code); toast('คัดลอกรหัสตั้งค่าแล้ว นำไปวางในเบราว์เซอร์อื่นได้', 'ok'); }
+  catch(e){ prompt('คัดลอกข้อความนี้ไปวางในเบราว์เซอร์อื่น', code); }
+};
+$('#cfgPaste').onclick = () => {
+  const code = prompt('วางรหัสตั้งค่าที่คัดลอกมา');
+  if (!code) return;
+  try{
+    const o = JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/^AH1:/,'')))));
+    setLock(false, true);
+    CFG_FIELDS.forEach(([id,k]) => { if (o[k] != null) $('#'+id).value = o[k]; });
+    $('#gsNoCors').checked = !!o.noCors;
+    saveCfg(); $('#cfgLog').textContent = ''; toast('นำค่าตั้งค่าเข้ามาแล้ว', 'ok');
+  }catch(e){ toast('รหัสตั้งค่าไม่ถูกต้อง', 'err'); }
 };
 $('#cfgClear').onclick = () => {
   if (!confirm('ล้างค่า URL รหัสลับ และชื่อชีตที่บันทึกไว้ทั้งหมด?')) return;
