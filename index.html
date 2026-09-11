@@ -269,18 +269,21 @@ input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
 .ibody.on{display:block}
 .ibody .tfoot{margin-top:9px}
 
-/* ---------- google sheet ---------- */
-.gsgrid{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:14px;align-items:start}
+/* ---------- settings ---------- */
+.gsgrid{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:14px;align-items:start}
 .chk{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--muted);cursor:pointer}
-.prog{margin:4px 0 18px}
-.proghead{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:8px}
-.proghead span:last-child{font-family:var(--mono);font-size:16px;font-weight:500;color:var(--brand)}
-.progbar{height:9px;background:var(--surface2);border:1px solid var(--line);border-radius:99px;overflow:hidden}
-.progbar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .25s}
-.progbar i.done{background:linear-gradient(90deg,var(--ok),var(--ok))}
-.progbar i.fail{background:var(--warn)}
-.progmeta{display:flex;gap:20px;flex-wrap:wrap;margin-top:9px;font-size:12px;color:var(--muted)}
-.progmeta b{font-family:var(--mono);color:var(--text);font-weight:500}
+.cfghead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:16px}
+.cfghead h3{margin:0 0 2px}
+.withbtn{display:flex;gap:7px}
+.withbtn input{flex:1}
+.peek{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:0 12px;font-size:12px;cursor:pointer}
+.peek:hover{color:var(--brand);border-color:var(--brand)}
+.panel.locked input,.panel.locked .peek{opacity:.62;pointer-events:none}
+.panel.locked #lockBtn{border-color:var(--ok);color:var(--ok)}
+.howto{margin:0;padding-left:20px;font-size:13px;color:var(--muted);line-height:1.9}
+.howto li{margin-bottom:4px}
+.howto b{color:var(--text);font-weight:500}
+.howto code{font-family:var(--mono);font-size:12px;color:var(--brand2)}
 
 .steplist{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .stepitem{display:flex;align-items:center;gap:11px;background:var(--surface);padding:10px 14px;font-size:13px;color:var(--muted)}
@@ -291,7 +294,7 @@ input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
 .stepitem .t{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--faint)}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-.gslog{margin-top:14px;max-height:190px;overflow:auto;font-family:var(--mono);font-size:11.5px;line-height:1.8;color:var(--muted)}
+.gslog{max-height:150px;overflow:auto;font-family:var(--mono);font-size:11.5px;line-height:1.8;color:var(--muted)}
 .gslog div{display:flex;gap:10px}
 .gslog span.ts{color:var(--faint);flex:none}
 .gslog div.err{color:var(--warn)}
@@ -309,6 +312,87 @@ details.code pre{
   font-family:var(--mono);font-size:11.5px;line-height:1.65;overflow:auto;max-height:400px;color:var(--text)
 }
 @media (max-width:900px){ .gsgrid{grid-template-columns:1fr} }
+
+/* ---------- cloud button ---------- */
+.btn-cloud{
+  position:relative;border:none;border-radius:99px;padding:10px 22px 10px 12px;cursor:pointer;
+  color:#fff;font-size:13.5px;font-weight:600;display:inline-flex;align-items:center;gap:10px;
+  background:linear-gradient(110deg,#6D28D9,#A855F7 38%,#22D3EE 68%,#A855F7 100%);
+  background-size:260% 100%;animation:drift 7s linear infinite;
+  box-shadow:0 6px 20px -8px rgba(139,92,246,.95), inset 0 1px 0 rgba(255,255,255,.25);
+  overflow:hidden;isolation:isolate;transition:transform .16s, box-shadow .16s
+}
+@keyframes drift{to{background-position:260% 50%}}
+.btn-cloud::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(100deg,transparent 34%,rgba(255,255,255,.42) 50%,transparent 66%);
+  transform:translateX(-130%);animation:shine 3.6s ease-in-out infinite
+}
+@keyframes shine{0%,55%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+.btn-cloud:hover{transform:translateY(-2px);box-shadow:0 12px 28px -8px rgba(139,92,246,1)}
+.btn-cloud:active{transform:translateY(0)}
+.btn-cloud:disabled{opacity:.55;cursor:not-allowed;animation-play-state:paused}
+.btn-cloud .orb{
+  width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:rgba(255,255,255,.2);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)
+}
+.btn-cloud .orb svg{width:14px;height:14px;animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(1px)}50%{transform:translateY(-2px)}}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:150;display:none;place-items:center;padding:20px;
+  background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(9px)}
+.modal.on{display:grid;animation:fade .2s ease}
+@keyframes fade{from{opacity:0}}
+.mcard{
+  position:relative;width:min(520px,100%);max-height:90vh;overflow:auto;
+  background:var(--surface);border:1px solid var(--line2);border-radius:22px;
+  padding:30px 30px 22px;text-align:center;box-shadow:0 40px 90px -40px rgba(0,0,0,.9);
+  animation:pop .28s cubic-bezier(.2,.9,.3,1.3)
+}
+@keyframes pop{from{opacity:0;transform:translateY(16px) scale(.96)}}
+.aurora{
+  position:absolute;left:50%;top:-90px;width:420px;height:240px;transform:translateX(-50%);
+  background:radial-gradient(circle at 30% 50%,rgba(168,85,247,.42),transparent 62%),
+             radial-gradient(circle at 70% 40%,rgba(34,211,238,.34),transparent 62%);
+  filter:blur(38px);pointer-events:none;animation:sway 8s ease-in-out infinite
+}
+@keyframes sway{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-46%) translateY(14px)}}
+.mclose{position:absolute;right:16px;top:16px}
+
+.ringwrap{position:relative;width:150px;height:150px;margin:6px auto 14px}
+.ring{width:150px;height:150px;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+.rtrack{stroke:var(--surface2)}
+.rfill{stroke:url(#gGrad);stroke:var(--brand);stroke-dasharray:351.86;stroke-dashoffset:351.86;transition:stroke-dashoffset .45s cubic-bezier(.3,.9,.4,1),stroke .3s}
+.rfill.done{stroke:var(--ok)} .rfill.fail{stroke:var(--warn)}
+.rcheck{fill:none;stroke:var(--ok);stroke-width:9;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:70;stroke-dashoffset:70;transform:rotate(90deg);transform-origin:65px 65px}
+.rcheck.on{animation:draw .5s .1s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.rtext{position:absolute;inset:0;display:grid;place-content:center;line-height:1.15}
+.rtext b{font-family:var(--mono);font-size:34px;font-weight:500;letter-spacing:-.03em}
+.rtext span{font-size:14px;color:var(--muted);margin-left:2px}
+.rtext em{display:block;font-style:normal;font-size:11.5px;color:var(--faint);font-family:var(--mono);margin-top:3px}
+.ringwrap.hide .rtext b,.ringwrap.hide .rtext span{display:none}
+
+.mcard h3{margin:0 0 4px;font-size:17px;font-weight:600}
+.mcard>p{margin:0 0 18px;font-size:13px;color:var(--muted);min-height:20px}
+.segs{display:flex;gap:3px;margin-bottom:14px;justify-content:center;flex-wrap:wrap}
+.segs i{width:14px;height:5px;border-radius:3px;background:var(--surface2);transition:background .3s,transform .3s}
+.segs i.on{background:var(--brand);transform:scaleY(1.5)}
+.segs i.run{background:var(--brand2);animation:pulse .9s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+.mmeta{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:16px}
+.mmeta b{font-family:var(--mono);color:var(--text);font-weight:500}
+.mlog{margin-top:14px;text-align:left;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.mlog summary{padding:10px 14px;cursor:pointer;font-size:12.5px;color:var(--muted);list-style:none}
+.mlog summary::-webkit-details-marker{display:none}
+.mlog summary::before{content:'▸ ';color:var(--brand)}
+.mlog[open] summary::before{content:'▾ '}
+.mlog .gslog{padding:0 14px 12px}
+.mfoot{display:flex;gap:9px;justify-content:center;margin-top:18px}
+.mfoot .btn{min-width:120px;justify-content:center}
 
 /* ---------- export bar ---------- */
 .exportbar{
@@ -365,7 +449,8 @@ footer code{font-family:var(--mono)}
       <div class="step" id="st3"><i>3</i>ตรวจและส่งออก</div>
     </div>
     <div class="grow"></div>
-    <button class="iconbtn" id="reset" title="ล้างข้อมูลทั้งหมด">
+    <button class="btn btn-g btn-s" id="resetTxt" style="margin-right:2px">ล้างข้อมูล</button>
+    <button class="iconbtn" id="reset" title="ล้างข้อมูล · ไม่กระทบค่าตั้งค่า">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>
     </button>
     <button class="iconbtn" id="theme" title="สลับธีมสว่าง/มืด">
@@ -435,7 +520,7 @@ footer code{font-family:var(--mono)}
       <button class="tab" data-view="table">ตารางข้อมูล<span id="tabCount"></span></button>
       <button class="tab" data-view="pivot">สรุปตามกลุ่ม</button>
       <button class="tab" data-view="qa">คุณภาพข้อมูล<span id="tabIssues"></span></button>
-      <button class="tab" data-view="sheet">ส่งขึ้น Google Sheet</button>
+      <button class="tab" data-view="sheet">ตั้งค่า</button>
     </div>
 
     <!-- dashboard -->
@@ -521,61 +606,72 @@ footer code{font-family:var(--mono)}
       <div id="issues"></div>
     </div>
 
-    <!-- google sheet -->
+    <!-- settings -->
     <div class="view" id="v-sheet">
       <div class="gsgrid">
-        <div class="panel">
-          <h3>ปลายทาง</h3>
-          <p class="sub">ต้องติดตั้ง Apps Script ในไฟล์ Google Sheet ก่อนหนึ่งครั้ง</p>
+        <div class="panel" id="cfgPanel">
+          <div class="cfghead">
+            <div>
+              <h3>ปลายทาง Google Sheet</h3>
+              <p class="sub" id="cfgState">ค่าที่กรอกจะถูกจำไว้ในเครื่องนี้</p>
+            </div>
+            <button class="btn btn-g btn-s" id="lockBtn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="lockIcon">
+                <rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4" id="shackle"/>
+              </svg>
+              <span id="lockText">ล็อกค่า</span>
+            </button>
+          </div>
+
           <div class="field">
             <label for="gsUrl">Web App URL · ลงท้ายด้วย /exec</label>
             <input type="text" id="gsUrl" placeholder="https://script.google.com/macros/s/…/exec">
           </div>
           <div class="field">
             <label for="gsToken">รหัสลับ · ตรงกับ SECRET ในสคริปต์</label>
-            <input type="text" id="gsToken">
+            <div class="withbtn">
+              <input type="password" id="gsToken">
+              <button class="peek" id="peek" title="แสดง/ซ่อน">ดู</button>
+            </div>
           </div>
           <div class="field">
             <label for="gsSheet">ชื่อชีตปลายทาง</label>
             <input type="text" id="gsSheet" value="Data">
           </div>
-          <label class="chk" style="margin-bottom:14px">
+          <div class="field">
+            <label for="gsLink">ลิงก์ Google Sheet · ไม่ใส่ก็ได้ ใช้สำหรับปุ่มเปิดชีตหลังนำเข้าเสร็จ</label>
+            <input type="text" id="gsLink" placeholder="https://docs.google.com/spreadsheets/d/…">
+          </div>
+          <label class="chk" style="margin-bottom:16px">
             <input type="checkbox" id="gsNoCors">
             ส่งแบบไม่รอผลตอบกลับ · ใช้เมื่อเจอ Failed to fetch
           </label>
-          <div style="display:flex;gap:9px">
+          <div style="display:flex;gap:9px;flex-wrap:wrap">
             <button class="btn btn-g" id="gsTest">ทดสอบการเชื่อมต่อ</button>
-            <button class="btn btn-p" id="gsRun" style="flex:1;justify-content:center">เริ่มนำเข้า</button>
+            <button class="btn btn-g" id="cfgClear">ล้างค่าที่บันทึก</button>
           </div>
+          <div class="log" id="cfgLog"></div>
         </div>
 
         <div class="panel">
-          <h3>สถานะการนำเข้า</h3>
-          <p class="sub" id="gsScope">—</p>
-
-          <div class="prog">
-            <div class="proghead">
-              <span id="gsStage">พร้อมเริ่ม</span>
-              <span id="gsPct">0%</span>
-            </div>
-            <div class="progbar"><i id="gsBar"></i></div>
-            <div class="progmeta">
-              <span><b id="gsSent">0</b> / <span id="gsTotal">0</span> แถว</span>
-              <span>ก้อนที่ <b id="gsChunk">0</b> / <span id="gsChunks">0</span></span>
-              <span>ใช้เวลา <b id="gsElapsed">0.0</b> วิ</span>
-              <span>เหลืออีกราว <b id="gsEta">—</b></span>
-            </div>
-          </div>
-
-          <div class="steplist" id="gsSteps"></div>
-          <div class="gslog" id="gsLog"></div>
+          <h3>วิธีติดตั้งครั้งแรก</h3>
+          <p class="sub">ทำครั้งเดียวต่อหนึ่งไฟล์ Google Sheet</p>
+          <ol class="howto">
+            <li>เปิดไฟล์ Google Sheet ปลายทาง → เมนู <b>Extensions → Apps Script</b></li>
+            <li>ลบโค้ดเดิมใน Code.gs ทิ้ง แล้ววางโค้ดด้านล่างนี้ลงไป</li>
+            <li>แก้ <code>SECRET</code> เป็นรหัสลับของคุณเอง แล้วบันทึก</li>
+            <li><b>Deploy → New deployment</b> → type = <b>Web app</b><br>Execute as = <b>Me</b> · Who has access = <b>Anyone</b></li>
+            <li>กด Authorize access อนุญาตสิทธิ์ · ถ้าเจอหน้าเตือน ให้กด Advanced → Go to … (unsafe)</li>
+            <li>คัดลอก Web app URL ที่ลงท้าย <code>/exec</code> มากรอกช่องด้านซ้าย พร้อมรหัสลับเดียวกัน</li>
+          </ol>
+          <p class="sub" style="margin:14px 0 0">แก้โค้ดครั้งใด ต้อง Deploy → Manage deployments → Version = <b>New version</b> ไม่งั้น URL เดิมจะยังรันโค้ดชุดเก่า</p>
         </div>
       </div>
 
       <details class="code">
         <summary>โค้ด Apps Script ที่ต้องติดตั้ง · คลิกเพื่อดู</summary>
         <div class="codehead">
-          <span>วางในไฟล์ Google Sheet → Extensions → Apps Script → Deploy → Web app (Execute as: Me · Who has access: Anyone)</span>
+          <span>วางทั้งหมดนี้ลงใน Code.gs แล้วแก้บรรทัด SECRET</span>
           <button class="btn btn-g btn-s" id="copyCode">คัดลอกโค้ด</button>
         </div>
         <pre id="codeBox"></pre>
@@ -594,6 +690,54 @@ footer code{font-family:var(--mono)}
     <div class="grow"></div>
     <button class="btn btn-a" id="dlXlsx">ดาวน์โหลด Excel</button>
     <button class="btn btn-g" id="dlCsv">ดาวน์โหลด CSV</button>
+    <button class="btn-cloud" id="gsRun">
+      <span class="orb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19V5"/><path d="M6 11l6-6 6 6"/>
+        </svg>
+      </span>
+      <span>ส่งขึ้น Google Sheet</span>
+    </button>
+  </div>
+</div>
+
+<div class="modal" id="gsModal" aria-hidden="true">
+  <div class="mcard">
+    <div class="aurora"></div>
+    <button class="iconbtn mclose" id="mClose">✕</button>
+
+    <div class="ringwrap">
+      <svg class="ring" viewBox="0 0 130 130">
+        <circle class="rtrack" cx="65" cy="65" r="56"/>
+        <circle class="rfill" id="rFill" cx="65" cy="65" r="56"/>
+        <path class="rcheck" id="rCheck" d="M45 66 l13 13 l27 -29"/>
+      </svg>
+      <div class="rtext">
+        <b id="mPct">0</b><span>%</span>
+        <em id="mRows">0 / 0 แถว</em>
+      </div>
+    </div>
+
+    <h3 id="mStage">กำลังเตรียมข้อมูล</h3>
+    <p id="mSub">—</p>
+
+    <div class="segs" id="mSegs"></div>
+
+    <div class="mmeta">
+      <span>ก้อน <b id="mChunk">0</b>/<span id="mChunks">0</span></span>
+      <span>ใช้เวลา <b id="mElapsed">0.0</b> วิ</span>
+      <span>เหลืออีกราว <b id="mEta">—</b></span>
+    </div>
+
+    <div class="steplist" id="gsSteps"></div>
+
+    <details class="mlog"><summary>บันทึกการทำงาน</summary><div class="gslog" id="gsLog"></div></details>
+
+    <div class="mfoot">
+      <button class="btn btn-g" id="mCancel">ยกเลิก</button>
+      <a class="btn btn-g" id="mOpen" target="_blank" rel="noopener" style="display:none">เปิด Google Sheet</a>
+      <button class="btn btn-p" id="mDone" style="display:none">เสร็จสิ้น</button>
+    </div>
   </div>
 </div>
 
@@ -1363,7 +1507,7 @@ function pivotOut(){
 
 /* ---------- push to Google Sheet ---------- */
 const CORS_HELP = 'ติดต่อ Apps Script ไม่ได้ · สาเหตุที่พบบ่อย (1) เปิดไฟล์นี้แบบ file:// (2) URL ไม่ได้ลงท้าย /exec หรือ deploy ไม่ได้ตั้ง Anyone (3) เครือข่ายบล็อก script.google.com';
-let gsSteps = [], gsT0 = 0;
+let gsSteps = [], gsT0 = 0, gsAbort = false, gsBusy = false;
 
 function gsLog(msg, cls){
   const box = $('#gsLog');
@@ -1393,12 +1537,13 @@ function drawSteps(){
     </div>`).join('');
 }
 function setProg(p, stage){
-  $('#gsBar').style.width = Math.round(p*100)+'%';
-  $('#gsPct').textContent = Math.round(p*100)+'%';
-  if (stage) $('#gsStage').textContent = stage;
+  const C = 351.86;
+  $('#rFill').style.strokeDashoffset = (C * (1 - Math.max(0, Math.min(1, p)))).toFixed(1);
+  $('#mPct').textContent = Math.round(p*100);
+  if (stage) $('#mStage').textContent = stage;
   const el = performance.now() - gsT0;
-  $('#gsElapsed').textContent = (el/1000).toFixed(1);
-  $('#gsEta').textContent = (p > 0.02 && p < 1) ? ((el/p - el)/1000).toFixed(0)+' วิ' : '—';
+  $('#mElapsed').textContent = (el/1000).toFixed(1);
+  $('#mEta').textContent = (p > 0.03 && p < 1) ? ((el/p - el)/1000).toFixed(0)+' วิ' : '—';
 }
 
 async function gsPost(url, payload){
@@ -1432,46 +1577,66 @@ async function gsPostRetry(url, payload, label){
 
 async function gsTest(){
   const url = $('#gsUrl').value.trim();
-  if (!url){ toast('ยังไม่ได้กรอก Web App URL', 'err'); return; }
-  if (!/\/exec$/.test(url)){ gsLog('URL ต้องลงท้ายด้วย /exec · ถ้าลงท้าย /dev คือลิงก์ทดสอบ ใช้ไม่ได้', 'err'); toast('URL ไม่ถูกต้อง','err'); return; }
-  gsLog('กำลังทดสอบการเชื่อมต่อ …');
+  const out = (m, c) => { const el = $('#cfgLog'); el.className = 'log' + (c==='err'?' err':''); el.textContent = m; };
+  if (!url){ out('ยังไม่ได้กรอก Web App URL','err'); return; }
+  if (!/\/exec$/.test(url)){ out('URL ต้องลงท้ายด้วย /exec · ถ้าลงท้าย /dev คือลิงก์ทดสอบ ใช้ไม่ได้','err'); return; }
+  out('กำลังทดสอบ …');
   try{
     const j = JSON.parse(await (await fetch(url)).text());
-    gsLog(j.ok ? 'เชื่อมต่อสำเร็จ พร้อมนำเข้า' : ('Apps Script ตอบ: ' + (j.error||'')), j.ok ? 'ok' : 'err');
+    out(j.ok ? 'เชื่อมต่อสำเร็จ พร้อมนำเข้า' : ('สคริปต์ตอบ: ' + (j.error||'')), j.ok ? '' : 'err');
     toast(j.ok ? 'เชื่อมต่อได้' : 'สคริปต์ตอบกลับผิดพลาด', j.ok ? 'ok' : 'err');
   }catch(e){
-    gsLog(CORS_HELP, 'err');
-    gsLog('ลองเปิด URL ในแท็บใหม่ · ถ้าขึ้น ok:true แปลว่าติดข้อ (1) ให้ติ๊กโหมดส่งแบบไม่รอผลตอบกลับ หรือเสิร์ฟไฟล์ผ่าน http', 'err');
+    out(CORS_HELP + ' · ลองเปิด URL ในแท็บใหม่ ถ้าขึ้น ok:true แปลว่าติดข้อ (1) ให้ติ๊กส่งแบบไม่รอผลตอบกลับ หรือเสิร์ฟไฟล์ผ่าน http','err');
     toast('เชื่อมต่อไม่ได้', 'err');
   }
+}
+
+function openModal(){
+  $('#gsModal').classList.add('on');
+  $('#gsModal').setAttribute('aria-hidden','false');
+}
+function closeModal(){
+  if (gsBusy){ if (!confirm('กำลังนำเข้าอยู่ ปิดหน้าต่างนี้จะหยุดกลางคัน ยืนยันหรือไม่')) return; gsAbort = true; }
+  $('#gsModal').classList.remove('on');
+  $('#gsModal').setAttribute('aria-hidden','true');
 }
 
 async function pushToSheet(){
   const url = $('#gsUrl').value.trim();
   const token = $('#gsToken').value.trim();
   const sheet = $('#gsSheet').value.trim() || 'Data';
-  if (!url){ toast('ยังไม่ได้กรอก Web App URL', 'err'); return; }
+  if (!url){ toast('ยังไม่ได้ตั้งค่า Web App URL ที่แท็บตั้งค่า', 'err'); goTab('sheet'); return; }
   if (!view.length){ toast('ไม่มีแถวให้ส่ง', 'err'); return; }
   if (!confirm(`จะเขียนทับชีต "${sheet}" ด้วยข้อมูล ${fmtInt(view.length)} แถว ยืนยันหรือไม่`)) return;
 
   const rows = view.slice();
   const nChunks = Math.ceil(rows.length / GS_CHUNK);
   const blind = $('#gsNoCors').checked;
-  const bar = $('#gsBar');
-  bar.className = '';
+
+  gsAbort = false; gsBusy = true;
+  $('#gsRun').disabled = true;
   $('#gsLog').innerHTML = '';
-  $('#gsTotal').textContent = fmtInt(rows.length);
-  $('#gsChunks').textContent = nChunks;
-  $('#gsSent').textContent = '0';
-  $('#gsChunk').textContent = '0';
+  $('#rFill').className = 'rfill';
+  $('#rCheck').classList.remove('on');
+  document.querySelector('.ringwrap').classList.remove('hide');
+  $('#mChunks').textContent = nChunks;
+  $('#mChunk').textContent = '0';
+  $('#mRows').textContent = `0 / ${fmtInt(rows.length)} แถว`;
+  $('#mSub').textContent = `ปลายทางชีต "${sheet}"` + (blind ? ' · โหมดไม่รอผลตอบกลับ' : '');
+  $('#mSegs').innerHTML = nChunks <= 60 ? Array.from({length:nChunks}, () => '<i></i>').join('') : '';
+  $('#mCancel').style.display = '';
+  $('#mDone').style.display = 'none';
+  $('#mOpen').style.display = 'none';
   setSteps(['ล้างชีตปลายทางและเขียนหัวตาราง', `ส่งข้อมูล ${fmtInt(rows.length)} แถว`, 'จัดรูปแบบและตัดแถวส่วนเกิน']);
   gsT0 = performance.now();
-  $('#gsRun').disabled = true; $('#gsTest').disabled = true;
+  setProg(0, 'กำลังเชื่อมต่อ');
+  openModal();
 
+  const segs = [...$('#mSegs').querySelectorAll('i')];
   const totalSteps = nChunks + 2;
   try{
-    if (blind) gsLog('โหมดส่งแบบไม่รอผลตอบกลับ · อ่านคำตอบจากสคริปต์ไม่ได้ ต้องเปิดชีตตรวจเอง');
-    stepState(0,'run'); setProg(0, 'กำลังล้างชีตปลายทาง');
+    if (blind) gsLog('โหมดส่งแบบไม่รอผลตอบกลับ · ยืนยันผลอัตโนมัติไม่ได้ ต้องเปิดชีตตรวจเอง');
+    stepState(0,'run');
     gsLog(`เริ่มนำเข้าไปยังชีต "${sheet}" · ${fmtInt(rows.length)} แถว · ${nChunks} ก้อน`);
     await gsPost(url, {token, sheet, mode:'start', header:COLS, total:rows.length, cols:COLS.length});
     stepState(0,'ok'); gsLog('ล้างชีตและเขียนหัวตารางแล้ว', 'ok');
@@ -1479,36 +1644,88 @@ async function pushToSheet(){
 
     stepState(1,'run');
     for (let i=0, n=0; i<rows.length; i+=GS_CHUNK, n++){
+      if (gsAbort) throw new Error('ยกเลิกโดยผู้ใช้ · ข้อมูลในชีตอาจไม่ครบ ควรส่งใหม่อีกครั้ง');
+      if (segs[n]) segs[n].className = 'run';
       const chunk = rows.slice(i, i+GS_CHUNK);
       const from = i+1, to = i+chunk.length;
-      $('#gsStage').textContent = `กำลังส่งแถว ${fmtInt(from)}–${fmtInt(to)}`;
+      setProg((n+1)/totalSteps, `กำลังส่งแถว ${fmtInt(from)}–${fmtInt(to)}`);
       await gsPostRetry(url, {token, sheet, mode:'chunk', startRow:i+2, rows:chunk}, `ก้อนที่ ${n+1}`);
-      $('#gsSent').textContent = fmtInt(to);
-      $('#gsChunk').textContent = n+1;
+      if (segs[n]) segs[n].className = 'on';
+      $('#mChunk').textContent = n+1;
+      $('#mRows').textContent = `${fmtInt(to)} / ${fmtInt(rows.length)} แถว`;
       gsLog(`ก้อนที่ ${n+1}/${nChunks} · แถว ${fmtInt(from)}–${fmtInt(to)} สำเร็จ`);
       setProg((n+2)/totalSteps);
     }
     stepState(1,'ok');
 
-    stepState(2,'run'); $('#gsStage').textContent = 'กำลังจัดรูปแบบ';
+    stepState(2,'run'); setProg((nChunks+1)/totalSteps, 'กำลังจัดรูปแบบ');
     await gsPost(url, {token, sheet, mode:'finish', total:rows.length, cols:COLS.length});
     stepState(2,'ok');
-    setProg(1, blind ? 'ส่งครบแล้ว · กรุณาตรวจในชีต' : 'นำเข้าสำเร็จ');
-    bar.className = 'done';
-    gsLog(blind
-      ? `ส่งครบ ${fmtInt(rows.length)} แถวแล้ว โหมดนี้ยืนยันผลไม่ได้ กรุณาเปิดชีต "${sheet}" ตรวจดู`
-      : `นำเข้าสำเร็จ ${fmtInt(rows.length)} แถว ลงชีต "${sheet}"`, 'ok');
+
+    setProg(1, blind ? 'ส่งครบแล้ว' : 'นำเข้าสำเร็จ');
+    $('#rFill').className = 'rfill done';
+    setTimeout(() => {
+      document.querySelector('.ringwrap').classList.add('hide');
+      $('#rCheck').classList.add('on');
+    }, 400);
+    $('#mSub').textContent = blind
+      ? `ส่งครบ ${fmtInt(rows.length)} แถวแล้ว กรุณาเปิดชีต "${sheet}" ตรวจดูว่าข้อมูลขึ้นครบ`
+      : `เขียนลงชีต "${sheet}" แล้ว ${fmtInt(rows.length)} แถว`;
+    gsLog(blind ? 'ส่งครบทุกก้อนแล้ว' : `นำเข้าสำเร็จ ${fmtInt(rows.length)} แถว`, 'ok');
+    const link = $('#gsLink').value.trim();
+    if (/^https?:\/\//.test(link)){ $('#mOpen').href = link; $('#mOpen').style.display = ''; }
     toast('นำเข้า Google Sheet เสร็จแล้ว', 'ok');
   }catch(e){
     const i = gsSteps.findIndex(x => x.s === 'run');
     if (i >= 0) stepState(i,'fail');
-    bar.className = 'fail';
-    $('#gsStage').textContent = 'นำเข้าไม่สำเร็จ';
+    $('#rFill').className = 'rfill fail';
+    $('#mStage').textContent = gsAbort ? 'ยกเลิกแล้ว' : 'นำเข้าไม่สำเร็จ';
+    $('#mSub').textContent = e.message;
     gsLog(e.message, 'err');
-    toast('นำเข้าไม่สำเร็จ', 'err');
+    toast(gsAbort ? 'ยกเลิกการนำเข้า' : 'นำเข้าไม่สำเร็จ', 'err');
   }
-  $('#gsRun').disabled = false; $('#gsTest').disabled = false;
+  gsBusy = false;
+  $('#gsRun').disabled = false;
+  $('#mCancel').style.display = 'none';
+  $('#mDone').style.display = '';
 }
+
+/* ---------- settings persistence ---------- */
+const LS_KEY = 'assethub.settings.v1';
+const CFG_FIELDS = [['gsUrl','url'],['gsToken','token'],['gsSheet','sheet'],['gsLink','link']];
+let cfgLocked = false;
+
+function saveCfg(){
+  const o = {locked: cfgLocked, noCors: $('#gsNoCors').checked};
+  CFG_FIELDS.forEach(([id,k]) => o[k] = $('#'+id).value);
+  try { localStorage.setItem(LS_KEY, JSON.stringify(o)); return true; }
+  catch(e){ return false; }
+}
+function loadCfg(){
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+  catch(e){ o = {}; }
+  CFG_FIELDS.forEach(([id,k]) => { if (o[k] != null) $('#'+id).value = o[k]; });
+  if (!$('#gsSheet').value) $('#gsSheet').value = GS_CONFIG.sheet || 'Data';
+  if (!$('#gsUrl').value && GS_CONFIG.url) $('#gsUrl').value = GS_CONFIG.url;
+  if (!$('#gsToken').value && GS_CONFIG.token) $('#gsToken').value = GS_CONFIG.token;
+  $('#gsNoCors').checked = !!o.noCors;
+  setLock(!!o.locked, true);
+  try {
+    localStorage.setItem(LS_KEY+'.probe','1'); localStorage.removeItem(LS_KEY+'.probe');
+  } catch(e){
+    $('#cfgState').textContent = 'เบราว์เซอร์นี้บันทึกค่าไว้ไม่ได้ · ลองเปิดไฟล์จากโฟลเดอร์โดยตรงหรือผ่าน http';
+  }
+}
+function setLock(v, silent){
+  cfgLocked = v;
+  $('#cfgPanel').classList.toggle('locked', v);
+  $('#lockText').textContent = v ? 'ปลดล็อก' : 'ล็อกค่า';
+  $('#shackle').setAttribute('d', v ? 'M8 11V7a4 4 0 0 1 8 0v4' : 'M8 11V7a4 4 0 0 1 7.5-2');
+  CFG_FIELDS.forEach(([id]) => $('#'+id).readOnly = v);
+  if (!silent){ saveCfg(); toast(v ? 'ล็อกค่าตั้งค่าแล้ว' : 'ปลดล็อกแล้ว แก้ไขได้', 'ok'); }
+}
+function goTab(name){ $$('.tab').find(t => t.dataset.view === name)?.click(); }
 
 /* ---------- wiring ---------- */
 /* ---------- wiring ---------- */
@@ -1573,7 +1790,6 @@ function syncCounts(){
   $('#tabCount').textContent = fmtInt(view.length);
   let sb = 0; for (const r of view) sb += r[11];
   $('#ebSum').innerHTML = `จะส่งออก <b>${fmtInt(view.length)}</b> แถว · มูลค่าตามบัญชีรวม <b>${fmtMoney(sb)}</b> บาท`;
-  $('#gsScope').textContent = `จะเขียน ${fmtInt(view.length)} แถวที่กรองไว้ตอนนี้ ทับชีตปลายทางทั้งแผ่น`;
 }
 
 $$('.tab').forEach(t => t.onclick = () => {
@@ -1585,7 +1801,7 @@ $$('.tab').forEach(t => t.onclick = () => {
   if (t.dataset.view === 'table') paint();
 });
 
-let tmr;
+let tmr, cfgTmr;
 $('#q').addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(applyFilter, 200); });
 ['#fStatus','#fClass','#fCc','#fYear','#fOwner'].forEach(s => $(s).addEventListener('change', applyFilter));
 $('#pGroup').addEventListener('change', renderPivot);
@@ -1605,11 +1821,28 @@ $('#pXlsx').onclick = () => {
   toast('ดาวน์โหลดสรุปแล้ว','ok');
 };
 
-$('#gsUrl').value = GS_CONFIG.url;
-$('#gsToken').value = GS_CONFIG.token;
-if (GS_CONFIG.sheet) $('#gsSheet').value = GS_CONFIG.sheet;
+loadCfg();
+CFG_FIELDS.forEach(([id]) => $('#'+id).addEventListener('input', () => { clearTimeout(cfgTmr); cfgTmr = setTimeout(saveCfg, 350); }));
+$('#gsNoCors').addEventListener('change', saveCfg);
+$('#lockBtn').onclick = () => setLock(!cfgLocked);
+$('#peek').onclick = () => {
+  const el = $('#gsToken');
+  el.type = el.type === 'password' ? 'text' : 'password';
+  $('#peek').textContent = el.type === 'password' ? 'ดู' : 'ซ่อน';
+};
+$('#cfgClear').onclick = () => {
+  if (!confirm('ล้างค่า URL รหัสลับ และชื่อชีตที่บันทึกไว้ทั้งหมด?')) return;
+  setLock(false, true);
+  CFG_FIELDS.forEach(([id]) => $('#'+id).value = '');
+  $('#gsSheet').value = 'Data'; $('#gsNoCors').checked = false;
+  try { localStorage.removeItem(LS_KEY); } catch(e){}
+  $('#cfgLog').textContent = ''; toast('ล้างค่าที่บันทึกแล้ว', 'ok');
+};
 $('#gsRun').onclick = pushToSheet;
 $('#gsTest').onclick = gsTest;
+$('#mClose').onclick = closeModal;
+$('#mDone').onclick = closeModal;
+$('#mCancel').onclick = () => { gsAbort = true; $('#mCancel').disabled = true; gsLog('ขอยกเลิก จะหยุดหลังก้อนปัจจุบันส่งเสร็จ', 'err'); };
 $('#codeBox').textContent = $('#gsCode').textContent.trim();
 $('#copyCode').onclick = async () => {
   try { await navigator.clipboard.writeText($('#codeBox').textContent); toast('คัดลอกโค้ดแล้ว','ok'); }
@@ -1627,7 +1860,7 @@ $('#theme').onclick = () => {
   document.documentElement.dataset.theme = cur === 'dark' ? 'light' : 'dark';
   if (merged.length) renderDash();
 };
-$('#reset').onclick = () => {
+const doReset = () => {
   if (merged.length && !confirm('ล้างไฟล์และผลลัพธ์ทั้งหมด?')) return;
   store.hub1 = store.hub2 = store.hr = null;
   merged = []; view = []; report = null;
@@ -1637,10 +1870,13 @@ $('#reset').onclick = () => {
   $('#st1').classList.add('on');
   setPb(0); log('');
   window.scrollTo({top:0, behavior:'smooth'});
+  toast('ล้างข้อมูลแล้ว · ค่าตั้งค่า Google Sheet ยังอยู่ครบ', 'ok');
 };
+$('#reset').onclick = doReset;
+$('#resetTxt').onclick = doReset;
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeDrawer();
+  if (e.key === 'Escape'){ if ($('#gsModal').classList.contains('on')) closeModal(); else closeDrawer(); }
   if (e.key === '/' && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)){
     e.preventDefault();
     $$('.tab').find(t => t.dataset.view === 'table').click();
