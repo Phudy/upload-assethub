@@ -281,6 +281,9 @@ input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
 .peek:hover{color:var(--brand);border-color:var(--brand)}
 .panel.locked input,.panel.locked .peek{opacity:.62;pointer-events:none}
 .panel.locked #lockBtn{border-color:var(--ok);color:var(--ok)}
+.lastbox{margin-top:16px;padding:11px 14px;border:1px solid var(--line);border-left:3px solid var(--info);border-radius:var(--r);background:var(--surface2);font-size:12.5px}
+.lastbox .lb-k{color:var(--muted);display:block;margin-bottom:2px}
+.lastbox .lb-v{font-family:var(--mono);font-size:12px}
 .howto{margin:0;padding-left:20px;font-size:13px;color:var(--muted);line-height:1.9}
 .howto li{margin-bottom:4px}
 .howto b{color:var(--text);font-weight:500}
@@ -636,6 +639,10 @@ footer code{font-family:var(--mono)}
             </div>
           </div>
           <div class="field">
+            <label for="gsUser">ชื่อผู้นำเข้า · ประทับไว้ในชีตทุกครั้งที่ส่ง</label>
+            <input type="text" id="gsUser" placeholder="เช่น ต้น">
+          </div>
+          <div class="field">
             <label for="gsSheet">ชื่อชีตปลายทาง</label>
             <input type="text" id="gsSheet" value="Data">
           </div>
@@ -649,9 +656,14 @@ footer code{font-family:var(--mono)}
           </label>
           <div style="display:flex;gap:9px;flex-wrap:wrap">
             <button class="btn btn-g" id="gsTest">ทดสอบการเชื่อมต่อ</button>
+            <button class="btn btn-g" id="cfgLinkBtn">สร้างลิงก์ตั้งค่าให้เพื่อน</button>
             <button class="btn btn-g" id="cfgCopy">คัดลอกค่าตั้งค่า</button>
             <button class="btn btn-g" id="cfgPaste">วางค่าตั้งค่า</button>
             <button class="btn btn-g" id="cfgClear">ล้างค่าที่บันทึก</button>
+          </div>
+          <div class="lastbox" id="lastBox" style="display:none">
+            <span class="lb-k">นำเข้าล่าสุด</span>
+            <span class="lb-v" id="lastTxt"></span>
           </div>
           <div class="log" id="cfgLog"></div>
         </div>
@@ -772,6 +784,7 @@ footer code{font-family:var(--mono)}
 <script type="text/plain" id="gsCode">
 /**
  * รับข้อมูลจาก "ระบบสร้างข้อมูล Asset Hub" มาเขียนลงชีตปลายทาง
+ * พร้อมบันทึกว่าใครนำเข้าเมื่อไรไว้ในชีต _ImportLog
  *
  * ติดตั้งครั้งเดียว
  *  1. เปิดไฟล์ Google Sheet ปลายทาง → เมนู Extensions → Apps Script
@@ -789,25 +802,32 @@ footer code{font-family:var(--mono)}
 
 const SECRET = 'เปลี่ยนรหัสนี้ก่อนใช้งาน';
 
+/** ชีตบันทึกประวัติการนำเข้า สร้างให้อัตโนมัติ */
+const LOG_SHEET = '_ImportLog';
+
 /** คอลัมน์ที่จัดรูปแบบเป็นตัวเลขทศนิยม 2 ตำแหน่ง (J, K, L) */
 const MONEY_COLS = [10, 11, 12];
 
 function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
-    if (!lock.tryLock(30000)) return reply({ ok: false, error: 'มีการนำเข้าอื่นทำงานอยู่ ลองใหม่อีกครั้ง' });
-
     const req = JSON.parse(e.postData.contents);
     if (req.token !== SECRET) return reply({ ok: false, error: 'รหัสลับไม่ถูกต้อง' });
 
     const ss = SpreadsheetApp.getActive();
+
+    // อ่านประวัติการนำเข้าล่าสุด ไม่ต้องรอ lock
+    if (req.mode === 'info') return reply({ ok: true, last: lastImport(ss) });
+
+    if (!lock.tryLock(30000)) return reply({ ok: false, error: 'มีการนำเข้าอื่นทำงานอยู่ ลองใหม่อีกครั้ง' });
+
     const name = req.sheet || 'Data';
     let sh = ss.getSheetByName(name);
     if (!sh) sh = ss.insertSheet(name);
 
     if (req.mode === 'start') return reply(start(sh, req));
     if (req.mode === 'chunk') return reply(chunk(sh, req));
-    if (req.mode === 'finish') return reply(finish(sh, req));
+    if (req.mode === 'finish') return reply(finish(ss, sh, req));
     return reply({ ok: false, error: 'ไม่รู้จักคำสั่ง ' + req.mode });
 
   } catch (err) {
@@ -829,6 +849,7 @@ function start(sh, req) {
 
   sh.clearContents();
   sh.clearFormats();
+  sh.getRange(1, 1).clearNote();
 
   if (sh.getMaxRows() < need) sh.insertRowsAfter(sh.getMaxRows(), need - sh.getMaxRows());
   if (sh.getMaxColumns() < cols) sh.insertColumnsAfter(sh.getMaxColumns(), cols - sh.getMaxColumns());
@@ -848,8 +869,8 @@ function chunk(sh, req) {
   return { ok: true, written: rows.length, startRow: req.startRow };
 }
 
-/** ตัดแถวส่วนเกินและจัดรูปแบบคอลัมน์ตัวเงิน */
-function finish(sh, req) {
+/** ตัดแถวส่วนเกิน จัดรูปแบบ แล้วประทับว่าใครนำเข้าเมื่อไร */
+function finish(ss, sh, req) {
   const total = Number(req.total);
   const last = total + 1;
 
@@ -861,8 +882,39 @@ function finish(sh, req) {
       sh.getRange(2, c, total, 1).setNumberFormat('#,##0.00');
     });
   }
+
+  const at = new Date();
+  const user = String(req.user || '').trim() || 'ไม่ระบุชื่อ';
+  const when = Utilities.formatDate(at, 'Asia/Bangkok', 'dd/MM/yyyy HH:mm');
+
+  // ประทับไว้เป็นโน้ตบนเซลล์ A1 ของชีตข้อมูล ชี้เมาส์ค้างก็เห็น
+  sh.getRange(1, 1).setNote(
+    'นำเข้าล่าสุดโดย ' + user + '\n' + when + ' น.\n' + total.toLocaleString() + ' แถว'
+  );
+
+  // บันทึกลงชีตประวัติ
+  const log = ss.getSheetByName(LOG_SHEET) || ss.insertSheet(LOG_SHEET);
+  if (log.getLastRow() === 0) {
+    log.getRange(1, 1, 1, 4).setValues([['เวลา', 'ผู้นำเข้า', 'ชีตปลายทาง', 'จำนวนแถว']]).setFontWeight('bold');
+    log.setFrozenRows(1);
+  }
+  log.appendRow([at, user, sh.getName(), total]);
+
   SpreadsheetApp.flush();
-  return { ok: true, rows: total, updatedAt: new Date().toISOString() };
+  return { ok: true, rows: total, user: user, at: at.toISOString() };
+}
+
+/** คืนข้อมูลการนำเข้าครั้งล่าสุดจากชีตประวัติ */
+function lastImport(ss) {
+  const log = ss.getSheetByName(LOG_SHEET);
+  if (!log || log.getLastRow() < 2) return null;
+  const r = log.getRange(log.getLastRow(), 1, 1, 4).getValues()[0];
+  return {
+    at: r[0] instanceof Date ? r[0].toISOString() : String(r[0]),
+    user: String(r[1]),
+    sheet: String(r[2]),
+    rows: Number(r[3]) || 0
+  };
 }
 
 function reply(obj) {
@@ -1587,11 +1639,45 @@ async function gsTest(){
   try{
     const j = JSON.parse(await (await fetch(url)).text());
     out(j.ok ? 'เชื่อมต่อสำเร็จ พร้อมนำเข้า' : ('สคริปต์ตอบ: ' + (j.error||'')), j.ok ? '' : 'err');
+    if (j.ok) fetchLast();
     toast(j.ok ? 'เชื่อมต่อได้' : 'สคริปต์ตอบกลับผิดพลาด', j.ok ? 'ok' : 'err');
   }catch(e){
     out(CORS_HELP + ' · ลองเปิด URL ในแท็บใหม่ ถ้าขึ้น ok:true แปลว่าติดข้อ (1) ให้ติ๊กส่งแบบไม่รอผลตอบกลับ หรือเสิร์ฟไฟล์ผ่าน http','err');
     toast('เชื่อมต่อไม่ได้', 'err');
   }
+}
+
+function agoText(iso){
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const m = Math.round((Date.now() - d.getTime())/60000);
+  if (m < 1) return 'เมื่อครู่นี้';
+  if (m < 60) return m + ' นาทีที่แล้ว';
+  const h = Math.round(m/60);
+  if (h < 24) return h + ' ชั่วโมงที่แล้ว';
+  const day = Math.round(h/24);
+  return day === 1 ? 'เมื่อวาน' : day + ' วันที่แล้ว';
+}
+function stampText(l){
+  const d = new Date(l.at);
+  const when = isNaN(d) ? String(l.at)
+    : d.toLocaleString('th-TH',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  return `${l.user} · ${when} น. · ${fmtInt(l.rows)} แถว · ${agoText(l.at)}`;
+}
+function showLast(l){
+  const box = $('#lastBox');
+  if (!l){ box.style.display = 'none'; return; }
+  box.style.display = '';
+  $('#lastTxt').textContent = stampText(l);
+}
+async function fetchLast(){
+  const url = $('#gsUrl').value.trim();
+  if (!url || $('#gsNoCors').checked) return null;
+  try{
+    const j = await gsPost(url, {token: $('#gsToken').value.trim(), mode:'info'});
+    showLast(j.last || null);
+    return j.last || null;
+  }catch(e){ return null; }
 }
 
 function openModal(){
@@ -1610,7 +1696,19 @@ async function pushToSheet(){
   const sheet = $('#gsSheet').value.trim() || 'Data';
   if (!url){ toast('ยังไม่ได้ตั้งค่า Web App URL ที่แท็บตั้งค่า', 'err'); goTab('sheet'); return; }
   if (!view.length){ toast('ไม่มีแถวให้ส่ง', 'err'); return; }
-  if (!confirm(`จะเขียนทับชีต "${sheet}" ด้วยข้อมูล ${fmtInt(view.length)} แถว ยืนยันหรือไม่`)) return;
+
+  const me = $('#gsUser').value.trim();
+  let warn = '';
+  const last = await fetchLast();
+  if (last){
+    const hrs = (Date.now() - new Date(last.at).getTime()) / 3600000;
+    if (hrs >= 0 && hrs < RECENT_HOURS){
+      warn = `\n\n⚠ ${last.user} เพิ่งนำเข้าไปแล้ว ${agoText(last.at)} (${fmtInt(last.rows)} แถว)\n`
+           + `การส่งครั้งนี้จะเขียนทับข้อมูลชุดนั้นทั้งหมด ควรเช็กกับทีมก่อน\n`;
+    }
+  }
+  if (!confirm(`จะเขียนทับชีต "${sheet}" ด้วยข้อมูล ${fmtInt(view.length)} แถว${warn}\nยืนยันหรือไม่`)) return;
+  if (!me && !confirm('ยังไม่ได้ตั้งชื่อผู้นำเข้าที่แท็บตั้งค่า จะบันทึกเป็น "ไม่ระบุชื่อ" ดำเนินการต่อหรือไม่')) { goTab('sheet'); return; }
 
   const rows = view.slice();
   const nChunks = Math.ceil(rows.length / GS_CHUNK);
@@ -1662,7 +1760,7 @@ async function pushToSheet(){
     stepState(1,'ok');
 
     stepState(2,'run'); setProg((nChunks+1)/totalSteps, 'กำลังจัดรูปแบบ');
-    await gsPost(url, {token, sheet, mode:'finish', total:rows.length, cols:COLS.length});
+    const fin = await gsPost(url, {token, sheet, mode:'finish', total:rows.length, cols:COLS.length, user: me});
     stepState(2,'ok');
 
     setProg(1, blind ? 'ส่งครบแล้ว' : 'นำเข้าสำเร็จ');
@@ -1675,6 +1773,7 @@ async function pushToSheet(){
       ? `ส่งครบ ${fmtInt(rows.length)} แถวแล้ว กรุณาเปิดชีต "${sheet}" ตรวจดูว่าข้อมูลขึ้นครบ`
       : `เขียนลงชีต "${sheet}" แล้ว ${fmtInt(rows.length)} แถว`;
     gsLog(blind ? 'ส่งครบทุกก้อนแล้ว' : `นำเข้าสำเร็จ ${fmtInt(rows.length)} แถว`, 'ok');
+    if (!blind) showLast({at: fin.at || new Date().toISOString(), user: fin.user || me || 'ไม่ระบุชื่อ', rows: rows.length});
     const link = $('#gsLink').value.trim();
     if (/^https?:\/\//.test(link)){ $('#mOpen').href = link; $('#mOpen').style.display = ''; }
     toast('นำเข้า Google Sheet เสร็จแล้ว', 'ok');
@@ -1698,7 +1797,8 @@ async function pushToSheet(){
 
 /* ---------- settings persistence ---------- */
 const LS_KEY = 'assethub.settings.v1';
-const CFG_FIELDS = [['gsUrl','url'],['gsToken','token'],['gsSheet','sheet'],['gsLink','link']];
+const CFG_FIELDS = [['gsUrl','url'],['gsToken','token'],['gsSheet','sheet'],['gsLink','link'],['gsUser','user']];
+const RECENT_HOURS = 6;   // เตือนถ้ามีคนนำเข้าไปแล้วภายในกี่ชั่วโมง
 let cfgLocked = false;
 
 function saveCfg(){
@@ -1828,6 +1928,8 @@ $('#pXlsx').onclick = () => {
 };
 
 loadCfg();
+readCfgFromHash();
+setTimeout(fetchLast, 400);
 CFG_FIELDS.forEach(([id]) => $('#'+id).addEventListener('input', () => { clearTimeout(cfgTmr); cfgTmr = setTimeout(saveCfg, 350); }));
 $('#gsNoCors').addEventListener('change', saveCfg);
 $('#lockBtn').onclick = () => setLock(!cfgLocked);
@@ -1835,23 +1937,43 @@ $('#peek').onclick = () => {
   const hidden = $('#gsToken').classList.toggle('masked');
   $('#peek').textContent = hidden ? 'ดู' : 'ซ่อน';
 };
-$('#cfgCopy').onclick = async () => {
+function cfgCode(){
   const o = {}; CFG_FIELDS.forEach(([id,k]) => o[k] = $('#'+id).value);
   o.noCors = $('#gsNoCors').checked;
-  const code = 'AH1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+  return 'AH1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
+}
+function applyCfgCode(code){
+  const o = JSON.parse(decodeURIComponent(escape(atob(String(code).trim().replace(/^AH1:/,'')))));
+  setLock(false, true);
+  CFG_FIELDS.forEach(([id,k]) => { if (o[k] != null) $('#'+id).value = o[k]; });
+  $('#gsNoCors').checked = !!o.noCors;
+  saveCfg();
+}
+function readCfgFromHash(){
+  const m = /[#&]cfg=([^&]+)/.exec(location.hash || '');
+  if (!m) return;
+  try{
+    applyCfgCode(decodeURIComponent(m[1]));
+    history.replaceState(null, '', location.pathname + location.search);
+    toast('รับค่าตั้งค่าจากลิงก์แล้ว พร้อมส่งขึ้น Google Sheet', 'ok');
+  }catch(e){ toast('ลิงก์ตั้งค่าไม่ถูกต้อง', 'err'); }
+}
+$('#cfgLinkBtn').onclick = async () => {
+  if (!$('#gsUrl').value.trim()){ toast('ยังไม่ได้กรอก Web App URL', 'err'); return; }
+  const link = location.origin + location.pathname + location.search + '#cfg=' + encodeURIComponent(cfgCode());
+  try { await navigator.clipboard.writeText(link); toast('คัดลอกลิงก์แล้ว ส่งให้เพื่อนเปิดครั้งเดียวก็ตั้งค่าเสร็จ', 'ok'); }
+  catch(e){ prompt('คัดลอกลิงก์นี้ส่งให้เพื่อน', link); }
+};
+$('#cfgCopy').onclick = async () => {
+  const code = cfgCode();
   try { await navigator.clipboard.writeText(code); toast('คัดลอกรหัสตั้งค่าแล้ว นำไปวางในเบราว์เซอร์อื่นได้', 'ok'); }
   catch(e){ prompt('คัดลอกข้อความนี้ไปวางในเบราว์เซอร์อื่น', code); }
 };
 $('#cfgPaste').onclick = () => {
   const code = prompt('วางรหัสตั้งค่าที่คัดลอกมา');
   if (!code) return;
-  try{
-    const o = JSON.parse(decodeURIComponent(escape(atob(code.trim().replace(/^AH1:/,'')))));
-    setLock(false, true);
-    CFG_FIELDS.forEach(([id,k]) => { if (o[k] != null) $('#'+id).value = o[k]; });
-    $('#gsNoCors').checked = !!o.noCors;
-    saveCfg(); $('#cfgLog').textContent = ''; toast('นำค่าตั้งค่าเข้ามาแล้ว', 'ok');
-  }catch(e){ toast('รหัสตั้งค่าไม่ถูกต้อง', 'err'); }
+  try{ applyCfgCode(code); $('#cfgLog').textContent = ''; toast('นำค่าตั้งค่าเข้ามาแล้ว', 'ok'); }
+  catch(e){ toast('รหัสตั้งค่าไม่ถูกต้อง', 'err'); }
 };
 $('#cfgClear').onclick = () => {
   if (!confirm('ล้างค่า URL รหัสลับ และชื่อชีตที่บันทึกไว้ทั้งหมด?')) return;
