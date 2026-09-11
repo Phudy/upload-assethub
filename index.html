@@ -510,7 +510,18 @@ details.code pre{
 .mlog summary::-webkit-details-marker{display:none}
 .mlog summary::before{content:'▸ ';color:var(--brand)}
 .mlog[open] summary::before{content:'▾ '}
-.mlog .gslog{padding:0 14px 12px}
+.mlog .gslog{padding:0 14px 12px;min-height:96px;max-height:210px}
+.mlog summary .live{
+  display:none;width:6px;height:6px;border-radius:50%;background:var(--brand);
+  margin-right:7px;vertical-align:middle;animation:ping2 1.4s ease-out infinite
+}
+.mlog.busy summary .live{display:inline-block}
+@keyframes ping2{
+  0%{box-shadow:0 0 0 0 rgba(139,92,246,.6)}
+  70%{box-shadow:0 0 0 7px rgba(139,92,246,0)}
+  100%{box-shadow:0 0 0 0 rgba(139,92,246,0)}
+}
+.gslog div:last-child{color:var(--text)}
 .mfoot{display:flex;gap:9px;justify-content:center;margin-top:18px}
 .mfoot .btn{min-width:120px;justify-content:center}
 
@@ -905,7 +916,10 @@ footer code{font-family:var(--mono)}
 
     <div class="steplist" id="gsSteps"></div>
 
-    <details class="mlog"><summary>บันทึกการทำงาน</summary><div class="gslog" id="gsLog"></div></details>
+    <details class="mlog" id="mLogBox" open>
+      <summary><span class="live" id="mLive"></span>บันทึกการทำงาน</summary>
+      <div class="gslog" id="gsLog"></div>
+    </details>
 
     <div class="mfoot">
       <button class="btn btn-g" id="mCancel">ยกเลิก</button>
@@ -2107,6 +2121,8 @@ async function pushToSheet(){
   gsAbort = false; gsBusy = true;
   $('#gsRun').disabled = true;
   $('#gsLog').innerHTML = '';
+  $('#mLogBox').open = true;
+  $('#mLogBox').classList.add('busy');
   $('#rFill').className = 'rfill';
   $('#rCheck').classList.remove('on');
   document.querySelector('.ringwrap').classList.remove('hide');
@@ -2196,6 +2212,7 @@ async function pushToSheet(){
     toast(gsAbort ? 'ยกเลิกการนำเข้า' : 'นำเข้าไม่สำเร็จ', 'err');
   }finally{
     gsBusy = false;
+    $('#mLogBox').classList.remove('busy');
     $('#gsRun').disabled = false;
     $('#mCancel').style.display = 'none';
     $('#mDone').style.display = '';
