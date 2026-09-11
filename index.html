@@ -650,6 +650,13 @@ footer code{font-family:var(--mono)}
             <label for="gsLink">ลิงก์ Google Sheet · ไม่ใส่ก็ได้ ใช้สำหรับปุ่มเปิดชีตหลังนำเข้าเสร็จ</label>
             <input type="text" id="gsLink" placeholder="https://docs.google.com/spreadsheets/d/…">
           </div>
+          <div class="field">
+            <label for="gsMode">วิธีส่งข้อมูล</label>
+            <select id="gsMode">
+              <option value="bulk">เร็ว · บีบอัดแล้วส่งครั้งเดียว (แนะนำ)</option>
+              <option value="chunk">ทีละก้อน · ช้ากว่าแต่เห็นความคืบหน้าละเอียด</option>
+            </select>
+          </div>
           <label class="chk" style="margin-bottom:16px">
             <input type="checkbox" id="gsNoCors">
             ส่งแบบไม่รอผลตอบกลับ · ใช้เมื่อเจอ Failed to fetch
@@ -738,7 +745,7 @@ footer code{font-family:var(--mono)}
 
     <div class="segs" id="mSegs"></div>
 
-    <div class="mmeta">
+    <div class="mmeta" id="mMeta">
       <span>ก้อน <b id="mChunk">0</b>/<span id="mChunks">0</span></span>
       <span>ใช้เวลา <b id="mElapsed">0.0</b> วิ</span>
       <span>เหลืออีกราว <b id="mEta">—</b></span>
@@ -805,7 +812,8 @@ const SECRET = 'เปลี่ยนรหัสนี้ก่อนใช้�
 /** ชีตบันทึกประวัติการนำเข้า สร้างให้อัตโนมัติ */
 const LOG_SHEET = '_ImportLog';
 
-/** คอลัมน์ที่จัดรูปแบบเป็นตัวเลขทศนิยม 2 ตำแหน่ง (J, K, L) */
+/** คอลัมน์ยอดเงินที่ต้องจัดรูปแบบ #,##0.00 นับจาก 1 คือ J, K, L
+ *  แอปจะส่งค่านี้มาด้วยทุกครั้ง ค่าตรงนี้ใช้เป็นค่าสำรองเท่านั้น */
 const MONEY_COLS = [10, 11, 12];
 
 function doPost(e) {
@@ -825,6 +833,7 @@ function doPost(e) {
     let sh = ss.getSheetByName(name);
     if (!sh) sh = ss.insertSheet(name);
 
+    if (req.mode === 'bulk') return reply(bulk(ss, sh, req));
     if (req.mode === 'start') return reply(start(sh, req));
     if (req.mode === 'chunk') return reply(chunk(sh, req));
     if (req.mode === 'finish') return reply(finish(ss, sh, req));
@@ -869,6 +878,60 @@ function chunk(sh, req) {
   return { ok: true, written: rows.length, startRow: req.startRow };
 }
 
+/**
+ * โหมดเร็ว: รับข้อมูลทั้งชุดเป็น TSV ที่ถูก gzip แล้ว base64 มาในครั้งเดียว
+ * คลายไฟล์แล้วเขียนลงชีตเป็นบล็อกใหญ่ ไม่ต้องยิงหลายรอบจากเบราว์เซอร์
+ */
+function bulk(ss, sh, req) {
+  const blob = Utilities.newBlob(Utilities.base64Decode(req.gz), 'application/x-gzip', 'data.gz');
+  const lines = Utilities.ungzip(blob).getDataAsString('UTF-8').split('\n');
+  while (lines.length && lines[lines.length - 1] === '') lines.pop();
+  if (lines.length < 2) return { ok: false, error: 'ไม่พบข้อมูลในไฟล์ที่ส่งมา' };
+
+  const header = lines[0].split('\t');
+  const total = lines.length - 1;
+  const cols = header.length;
+
+  const isNum = {};
+  (req.num || []).forEach(function (i) { isNum[i] = true; });
+
+  sh.clearContents();
+  sh.clearFormats();
+  sh.getRange(1, 1).clearNote();
+
+  const need = total + 1;
+  if (sh.getMaxRows() < need) sh.insertRowsAfter(sh.getMaxRows(), need - sh.getMaxRows());
+  if (sh.getMaxColumns() < cols) sh.insertColumnsAfter(sh.getMaxColumns(), cols - sh.getMaxColumns());
+
+  sh.getRange(1, 1, 1, cols).setValues([header]).setFontWeight('bold');
+  sh.setFrozenRows(1);
+
+  // เขียนทีละบล็อกใหญ่ เพื่อไม่ให้กินหน่วยความจำเกิน
+  const BLOCK = 15000;
+  for (var s = 1; s <= total; s += BLOCK) {
+    var e = Math.min(total, s + BLOCK - 1);
+    var block = [];
+    for (var i = s; i <= e; i++) {
+      var f = lines[i].split('\t');
+      var row = new Array(cols);
+      for (var c = 0; c < cols; c++) {
+        var v = f[c] === undefined ? '' : f[c];
+        if (isNum[c] && v !== '') {
+          var n = Number(v);
+          row[c] = isFinite(n) ? n : v;   // ถ้าแปลงไม่ได้ ปล่อยเป็นข้อความให้เห็นปัญหา แทนที่จะกลายเป็น 0 เงียบ ๆ
+        } else {
+          row[c] = v;
+        }
+      }
+      block.push(row);
+      lines[i] = null;
+    }
+    sh.getRange(s + 1, 1, block.length, cols).setValues(block);
+  }
+
+  return finish(ss, sh, { total: total, user: req.user, money: req.money });
+}
+
 /** ตัดแถวส่วนเกิน จัดรูปแบบ แล้วประทับว่าใครนำเข้าเมื่อไร */
 function finish(ss, sh, req) {
   const total = Number(req.total);
@@ -877,9 +940,10 @@ function finish(ss, sh, req) {
   const extra = sh.getMaxRows() - last;
   if (extra > 0) sh.deleteRows(last + 1, extra);
 
+  const money = (req.money && req.money.length) ? req.money : MONEY_COLS;
   if (total > 0) {
-    MONEY_COLS.forEach(function (c) {
-      sh.getRange(2, c, total, 1).setNumberFormat('#,##0.00');
+    money.forEach(function (c) {
+      sh.getRange(2, c, total, 1).setNumberFormat('#,##0.00').setHorizontalAlignment('right');
     });
   }
 
@@ -1680,6 +1744,88 @@ async function fetchLast(){
   }catch(e){ return null; }
 }
 
+function tsvOf(header, rows){
+  const clean = v => {
+    if (typeof v === 'number') return String(v);
+    const t = String(v ?? '');
+    return /[\t\r\n]/.test(t) ? t.replace(/[\t\r\n]+/g, ' ') : t;
+  };
+  const out = [header.map(clean).join('\t')];
+  for (let i=0;i<rows.length;i++) out.push(rows[i].map(clean).join('\t'));
+  return out.join('\n');
+}
+const canGzip = () => typeof CompressionStream !== 'undefined';
+async function gzipText(text){
+  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+function toBase64(u8){
+  let s = '';
+  const CH = 0x8000;
+  for (let i=0;i<u8.length;i+=CH) s += String.fromCharCode.apply(null, u8.subarray(i, i+CH));
+  return btoa(s);
+}
+function postXhr(url, payload, onUp){
+  return new Promise((res, rej) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', url, true);
+    x.upload.onprogress = e => { if (e.lengthComputable && onUp) onUp(e.loaded / e.total); };
+    x.onload = () => {
+      let j;
+      try { j = JSON.parse(x.responseText); }
+      catch(e){ return rej(new Error('ตอบกลับผิดรูปแบบ · ตรวจว่า Deploy แบบ Anyone แล้วหรือยัง')); }
+      j.ok ? res(j) : rej(new Error(j.error || 'Apps Script แจ้งข้อผิดพลาด'));
+    };
+    x.onerror = () => { const e = new Error(CORS_HELP); e.cors = true; rej(e); };
+    x.ontimeout = () => rej(new Error('หมดเวลารอ Apps Script'));
+    x.timeout = 15 * 60 * 1000;
+    x.send(JSON.stringify(payload));
+  });
+}
+
+/** ส่งทั้งชุดครั้งเดียว: TSV → gzip → base64 → Apps Script เขียนลงชีตฝั่งเซิร์ฟเวอร์ */
+async function pushBulk(url, token, sheet, rows, me, blind){
+  stepState(0,'run');
+  setProg(0.02, 'กำลังเตรียมข้อมูล');
+  await yieldUI();
+  const tsv = tsvOf(COLS, rows);
+  gsLog(`สร้างตาราง ${fmtInt(rows.length)} แถว · ${(tsv.length/1048576).toFixed(1)} MB`);
+  setProg(0.06, 'กำลังบีบอัด');
+  await yieldUI();
+  const gz = await gzipText(tsv);
+  const b64 = toBase64(gz);
+  gsLog(`บีบอัดเหลือ ${(gz.length/1048576).toFixed(2)} MB · ส่งจริง ${(b64.length/1048576).toFixed(2)} MB`, 'ok');
+  stepState(0,'ok');
+
+  stepState(1,'run');
+  setProg(0.12, 'กำลังอัปโหลด');
+  const payload = {token, sheet, mode:'bulk', user: me, gz: b64, num: NUMCOLS, money: MONEYCOLS};
+  let fin;
+  if (blind){
+    await fetch(url, {method:'POST', mode:'no-cors', body: JSON.stringify(payload)});
+    stepState(1,'ok'); stepState(2,'ok');
+    setProg(1);
+    return {ok:true, unverified:true};
+  }
+
+  let creep = null;
+  fin = await postXhr(url, payload, p => {
+    setProg(0.12 + p*0.5, `กำลังอัปโหลด ${Math.round(p*100)}%`);
+    $('#mRows').textContent = `${(b64.length*p/1048576).toFixed(1)} / ${(b64.length/1048576).toFixed(1)} MB`;
+    if (p >= 1 && !creep){
+      stepState(1,'ok'); stepState(2,'run');
+      gsLog('อัปโหลดครบแล้ว กำลังรอ Google เขียนลงชีต');
+      $('#mRows').textContent = `${fmtInt(rows.length)} แถว`;
+      let q = 0.62;
+      creep = setInterval(() => { q = Math.min(0.96, q + (0.96-q)*0.06); setProg(q, 'Google กำลังเขียนลงชีต'); }, 600);
+    }
+  });
+  if (creep) clearInterval(creep);
+  stepState(1,'ok'); stepState(2,'ok');
+  setProg(1);
+  return fin;
+}
+
 function openModal(){
   $('#gsModal').classList.add('on');
   $('#gsModal').setAttribute('aria-hidden','false');
@@ -1711,8 +1857,10 @@ async function pushToSheet(){
   if (!me && !confirm('ยังไม่ได้ตั้งชื่อผู้นำเข้าที่แท็บตั้งค่า จะบันทึกเป็น "ไม่ระบุชื่อ" ดำเนินการต่อหรือไม่')) { goTab('sheet'); return; }
 
   const rows = view.slice();
-  const nChunks = Math.ceil(rows.length / GS_CHUNK);
   const blind = $('#gsNoCors').checked;
+  const fast = $('#gsMode').value === 'bulk' && canGzip();
+  if ($('#gsMode').value === 'bulk' && !fast) toast('เบราว์เซอร์นี้บีบอัดไม่ได้ ใช้โหมดทีละก้อนแทน');
+  const nChunks = fast ? 0 : Math.ceil(rows.length / GS_CHUNK);
 
   gsAbort = false; gsBusy = true;
   $('#gsRun').disabled = true;
@@ -1720,23 +1868,49 @@ async function pushToSheet(){
   $('#rFill').className = 'rfill';
   $('#rCheck').classList.remove('on');
   document.querySelector('.ringwrap').classList.remove('hide');
-  $('#mChunks').textContent = nChunks;
+  $('#mChunks').textContent = nChunks || 1;
   $('#mChunk').textContent = '0';
   $('#mRows').textContent = `0 / ${fmtInt(rows.length)} แถว`;
-  $('#mSub').textContent = `ปลายทางชีต "${sheet}"` + (blind ? ' · โหมดไม่รอผลตอบกลับ' : '');
-  $('#mSegs').innerHTML = nChunks <= 60 ? Array.from({length:nChunks}, () => '<i></i>').join('') : '';
-  $('#mCancel').style.display = '';
+  $('#mSub').textContent = `ปลายทางชีต "${sheet}" · ${fast ? 'โหมดเร็ว' : 'โหมดทีละก้อน'}` + (blind ? ' · ไม่รอผลตอบกลับ' : '');
+  $('#mSegs').innerHTML = (!fast && nChunks <= 60) ? Array.from({length:nChunks}, () => '<i></i>').join('') : '';
+  $('#mCancel').style.display = fast ? 'none' : '';
   $('#mDone').style.display = 'none';
   $('#mOpen').style.display = 'none';
-  setSteps(['ล้างชีตปลายทางและเขียนหัวตาราง', `ส่งข้อมูล ${fmtInt(rows.length)} แถว`, 'จัดรูปแบบและตัดแถวส่วนเกิน']);
+  $('#mMeta').style.display = fast ? 'none' : '';
+  setSteps(fast
+    ? ['เตรียมและบีบอัดข้อมูล', 'อัปโหลดขึ้น Apps Script', 'Google เขียนลงชีต']
+    : ['ล้างชีตปลายทางและเขียนหัวตาราง', `ส่งข้อมูล ${fmtInt(rows.length)} แถว`, 'จัดรูปแบบและตัดแถวส่วนเกิน']);
   gsT0 = performance.now();
   setProg(0, 'กำลังเชื่อมต่อ');
   openModal();
 
   const segs = [...$('#mSegs').querySelectorAll('i')];
   const totalSteps = nChunks + 2;
+  let fin = null;
+  const finishOk = () => {
+    setProg(1, blind ? 'ส่งครบแล้ว' : 'นำเข้าสำเร็จ');
+    $('#rFill').className = 'rfill done';
+    setTimeout(() => {
+      document.querySelector('.ringwrap').classList.add('hide');
+      $('#rCheck').classList.add('on');
+    }, 400);
+    $('#mSub').textContent = blind
+      ? `ส่งครบ ${fmtInt(rows.length)} แถวแล้ว กรุณาเปิดชีต "${sheet}" ตรวจดูว่าข้อมูลขึ้นครบ`
+      : `เขียนลงชีต "${sheet}" แล้ว ${fmtInt(rows.length)} แถว ใช้เวลา ${((performance.now()-gsT0)/1000).toFixed(1)} วินาที`;
+    gsLog(blind ? 'ส่งครบทุกก้อนแล้ว' : `นำเข้าสำเร็จ ${fmtInt(rows.length)} แถว`, 'ok');
+    if (!blind && fin) showLast({at: fin.at || new Date().toISOString(), user: fin.user || me || 'ไม่ระบุชื่อ', rows: rows.length});
+    const link = $('#gsLink').value.trim();
+    if (/^https?:\/\//.test(link)){ $('#mOpen').href = link; $('#mOpen').style.display = ''; }
+    toast('นำเข้า Google Sheet เสร็จแล้ว', 'ok');
+  };
   try{
     if (blind) gsLog('โหมดส่งแบบไม่รอผลตอบกลับ · ยืนยันผลอัตโนมัติไม่ได้ ต้องเปิดชีตตรวจเอง');
+    if (fast){
+      gsLog(`เริ่มนำเข้าแบบเร็วไปยังชีต "${sheet}" · ${fmtInt(rows.length)} แถว`);
+      fin = await pushBulk(url, token, sheet, rows, me, blind);
+      finishOk();
+      return;
+    }
     stepState(0,'run');
     gsLog(`เริ่มนำเข้าไปยังชีต "${sheet}" · ${fmtInt(rows.length)} แถว · ${nChunks} ก้อน`);
     await gsPost(url, {token, sheet, mode:'start', header:COLS, total:rows.length, cols:COLS.length});
@@ -1760,23 +1934,10 @@ async function pushToSheet(){
     stepState(1,'ok');
 
     stepState(2,'run'); setProg((nChunks+1)/totalSteps, 'กำลังจัดรูปแบบ');
-    const fin = await gsPost(url, {token, sheet, mode:'finish', total:rows.length, cols:COLS.length, user: me});
+    fin = await gsPost(url, {token, sheet, mode:'finish', total:rows.length, cols:COLS.length, user: me, money: MONEYCOLS});
     stepState(2,'ok');
 
-    setProg(1, blind ? 'ส่งครบแล้ว' : 'นำเข้าสำเร็จ');
-    $('#rFill').className = 'rfill done';
-    setTimeout(() => {
-      document.querySelector('.ringwrap').classList.add('hide');
-      $('#rCheck').classList.add('on');
-    }, 400);
-    $('#mSub').textContent = blind
-      ? `ส่งครบ ${fmtInt(rows.length)} แถวแล้ว กรุณาเปิดชีต "${sheet}" ตรวจดูว่าข้อมูลขึ้นครบ`
-      : `เขียนลงชีต "${sheet}" แล้ว ${fmtInt(rows.length)} แถว`;
-    gsLog(blind ? 'ส่งครบทุกก้อนแล้ว' : `นำเข้าสำเร็จ ${fmtInt(rows.length)} แถว`, 'ok');
-    if (!blind) showLast({at: fin.at || new Date().toISOString(), user: fin.user || me || 'ไม่ระบุชื่อ', rows: rows.length});
-    const link = $('#gsLink').value.trim();
-    if (/^https?:\/\//.test(link)){ $('#mOpen').href = link; $('#mOpen').style.display = ''; }
-    toast('นำเข้า Google Sheet เสร็จแล้ว', 'ok');
+    finishOk();
   }catch(e){
     const i = gsSteps.findIndex(x => x.s === 'run');
     if (i >= 0) stepState(i,'fail');
@@ -1788,21 +1949,24 @@ async function pushToSheet(){
       : e.message;
     gsLog(e.message, 'err');
     toast(gsAbort ? 'ยกเลิกการนำเข้า' : 'นำเข้าไม่สำเร็จ', 'err');
+  }finally{
+    gsBusy = false;
+    $('#gsRun').disabled = false;
+    $('#mCancel').style.display = 'none';
+    $('#mDone').style.display = '';
   }
-  gsBusy = false;
-  $('#gsRun').disabled = false;
-  $('#mCancel').style.display = 'none';
-  $('#mDone').style.display = '';
 }
 
 /* ---------- settings persistence ---------- */
 const LS_KEY = 'assethub.settings.v1';
 const CFG_FIELDS = [['gsUrl','url'],['gsToken','token'],['gsSheet','sheet'],['gsLink','link'],['gsUser','user']];
+const NUMCOLS = [3,4,9,10,11,12];        // คอลัมน์ (นับจาก 0) ที่ต้องเก็บเป็นตัวเลขในชีต
+const MONEYCOLS = [10,11,12];            // คอลัมน์ (นับจาก 1) J K L ที่ต้องจัดรูปแบบยอดเงิน
 const RECENT_HOURS = 6;   // เตือนถ้ามีคนนำเข้าไปแล้วภายในกี่ชั่วโมง
 let cfgLocked = false;
 
 function saveCfg(){
-  const o = {locked: cfgLocked, noCors: $('#gsNoCors').checked};
+  const o = {locked: cfgLocked, noCors: $('#gsNoCors').checked, mode: $('#gsMode').value};
   CFG_FIELDS.forEach(([id,k]) => o[k] = $('#'+id).value);
   try { localStorage.setItem(LS_KEY, JSON.stringify(o)); return true; }
   catch(e){ return false; }
@@ -1816,6 +1980,7 @@ function loadCfg(){
   if (!$('#gsUrl').value && GS_CONFIG.url) $('#gsUrl').value = GS_CONFIG.url;
   if (!$('#gsToken').value && GS_CONFIG.token) $('#gsToken').value = GS_CONFIG.token;
   $('#gsNoCors').checked = !!o.noCors;
+  if (o.mode) $('#gsMode').value = o.mode;
   setLock(!!o.locked, true);
   try {
     localStorage.setItem(LS_KEY+'.probe','1'); localStorage.removeItem(LS_KEY+'.probe');
@@ -1932,6 +2097,7 @@ readCfgFromHash();
 setTimeout(fetchLast, 400);
 CFG_FIELDS.forEach(([id]) => $('#'+id).addEventListener('input', () => { clearTimeout(cfgTmr); cfgTmr = setTimeout(saveCfg, 350); }));
 $('#gsNoCors').addEventListener('change', saveCfg);
+$('#gsMode').addEventListener('change', saveCfg);
 $('#lockBtn').onclick = () => setLock(!cfgLocked);
 $('#peek').onclick = () => {
   const hidden = $('#gsToken').classList.toggle('masked');
@@ -1939,7 +2105,7 @@ $('#peek').onclick = () => {
 };
 function cfgCode(){
   const o = {}; CFG_FIELDS.forEach(([id,k]) => o[k] = $('#'+id).value);
-  o.noCors = $('#gsNoCors').checked;
+  o.noCors = $('#gsNoCors').checked; o.mode = $('#gsMode').value;
   return 'AH1:' + btoa(unescape(encodeURIComponent(JSON.stringify(o))));
 }
 function applyCfgCode(code){
@@ -1947,6 +2113,7 @@ function applyCfgCode(code){
   setLock(false, true);
   CFG_FIELDS.forEach(([id,k]) => { if (o[k] != null) $('#'+id).value = o[k]; });
   $('#gsNoCors').checked = !!o.noCors;
+  if (o.mode) $('#gsMode').value = o.mode;
   saveCfg();
 }
 function readCfgFromHash(){
