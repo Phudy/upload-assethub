@@ -1384,29 +1384,66 @@ async function readRows(file){
   return decodeText(buf).split(/\r?\n/).map(splitRow);
 }
 
+const cellsOf = r => r.map(c => String(c ?? '').replace(/^\uFEFF/,'').trim());
+
 function detect(rows){
-  for (const r of rows.slice(0,60)){
+  // ดูจากหัวตารางจริงก่อน เพราะทั้ง HUB1 และ HUB2 รุ่นใหม่มีแบนเนอร์ SAP เหมือนกัน
+  for (const r of rows.slice(0,80)){
+    const c = cellsOf(r);
+    if (c.includes('Ev.2') && c.includes('คลาส')) return 'hub2';
+    if (c.includes('Pers.No.') && c.includes('หมายเลขพนักงาน')) return 'hr';
+    if (c.includes('BusA') && c.includes('Pers.No.')) return 'hub1';
+  }
+  for (const r of rows.slice(0,80)){
     const j = r.join('|');
-    if (/(^|\|)BusA\|/.test(j) && j.includes('สินทรัพย์') && j.includes('Pers.No.')) return 'hub1';
-    if (j.includes('Pers.No.') && j.includes('หมายเลขพนักงาน')) return 'hr';
-    if (j.includes('Ev.2') && j.includes('คลาส')) return 'hub2';
     if (j.includes('การแสดงรายการแบบไดนามิก') || j.includes('ยอดสินทรัพย์คงเหลือ')) return 'hub2';
   }
   return null;
 }
 
+/* ช่องปลายทางในรูปแบบมาตรฐาน → ชื่อคอลัมน์ที่ยอมรับ (ไฟล์ SAP เปลี่ยนตำแหน่งคอลัมน์ได้) */
+const H1MAP = [
+  [0,  ['BusA'], true],
+  [1,  ['ศ.ต้นทุน'], true],
+  [3,  ['สินทรัพย์'], true],
+  [4,  ['SNo.'], true],
+  [5,  ['คำอธิบายของสินทรัพย์'], true],
+  [6,  ['เลขที่ผลิตภัณฑ์'], false],
+  [7,  ['เลขที่สินค้าคงคลัง','เลขสินค้าคงคลัง'], false],
+  [8,  ['Cap.date'], true],
+  [9,  ['มูลค่าการได้มา'], true],
+  [10, ['ค่าเสื่อมสะสม'], true],
+  [11, ['มูลค่าตามบัญชี'], true],
+  [12, ['Pers.No.'], false],
+];
+
 function parseHub1(rows){
-  let start = -1;
-  for (let i=0;i<rows.length && i<60;i++){
-    if (rows[i][0] && String(rows[i][0]).replace(/^\uFEFF/,'') === 'BusA'){ start = i+1; break; }
+  let hi = -1, H = null;
+  for (let i=0;i<rows.length && i<80;i++){
+    const c = cellsOf(rows[i]);
+    if (c.includes('BusA') && c.includes('Pers.No.')){ hi = i; H = c; break; }
   }
-  if (start < 0) throw new Error('ไม่พบหัวตาราง BusA');
+  if (hi < 0) throw new Error('ไม่พบหัวตารางที่มีทั้ง BusA และ Pers.No.');
+
+  const at = {};
+  for (const [slot, names, required] of H1MAP){
+    const j = H.findIndex(h => names.includes(h));
+    if (j < 0 && required) throw new Error('ไม่พบคอลัมน์ ' + names[0]);
+    at[slot] = j;
+  }
+
   const out = [];
-  for (let i=start;i<rows.length;i++){
+  for (let i=hi+1;i<rows.length;i++){
     const r = rows[i];
-    if (r.length < 13) continue;
-    if (!/^\d+$/.test(String(r[3]||'').trim())) continue;   // ข้ามบรรทัดยอดรวมของ SAP
-    out.push(r);
+    if (!r || !r.length) continue;
+    const asset = String(r[at[3]] ?? '').trim();
+    if (!/^\d+$/.test(asset)) continue;          // ข้ามบรรทัดยอดรวมและบรรทัดว่างของ SAP
+    const o = new Array(13).fill('');
+    for (const [slot] of H1MAP){
+      const j = at[slot];
+      if (j >= 0) o[slot] = String(r[j] ?? '').trim();
+    }
+    out.push(o);
   }
   if (!out.length) throw new Error('ไม่พบแถวข้อมูล');
   return out;
@@ -1425,10 +1462,10 @@ function parseHub2(rows){
 function parseHr(rows){
   let hi = -1;
   for (let i=0;i<rows.length && i<40;i++){
-    if (rows[i].some(c => String(c).trim()==='Pers.No.')){ hi = i; break; }
+    if (cellsOf(rows[i]).includes('Pers.No.')){ hi = i; break; }
   }
   if (hi < 0) throw new Error('ไม่พบหัวตาราง Pers.No.');
-  const H = rows[hi].map(c => String(c).trim());
+  const H = cellsOf(rows[hi]);
   const at = n => H.indexOf(n);
   const cId = at('Pers.No.');
   const cName = at('หมายเลขพนักงาน') >= 0 ? at('หมายเลขพนักงาน') : cId+1;
