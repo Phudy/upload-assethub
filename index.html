@@ -269,6 +269,33 @@ input[type=checkbox]{accent-color:var(--brand);width:14px;height:14px}
 .ibody.on{display:block}
 .ibody .tfoot{margin-top:9px}
 
+/* ---------- inline editing ---------- */
+.vrow .c[contenteditable="true"]{cursor:text;border-radius:4px}
+.vrow .c[contenteditable="true"]:hover{box-shadow:inset 0 0 0 1px var(--line2)}
+.vrow .c[contenteditable="true"]:focus{
+  outline:none;box-shadow:inset 0 0 0 2px var(--brand);background:var(--bg);
+  color:var(--text);overflow:visible;white-space:nowrap
+}
+.vrow .c.dirty{background:color-mix(in srgb,var(--amber) 20%,transparent);color:var(--text)}
+.vrow .c.locked{opacity:.5}
+.vhead .h.locked::after{content:' 🔒';font-size:9px;opacity:.6}
+
+.editbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:55;display:none;
+  background:color-mix(in srgb,var(--surface) 94%,transparent);backdrop-filter:blur(10px);
+  border-top:2px solid var(--amber)
+}
+.editbar.on{display:block;animation:ebin .2s ease}
+@keyframes ebin{from{transform:translateY(100%)}}
+.editbar .in{max-width:1440px;margin:0 auto;padding:11px 22px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.editbar .ebadge{
+  min-width:30px;height:30px;padding:0 9px;border-radius:99px;display:grid;place-items:center;
+  background:var(--amber);color:#241703;font-family:var(--mono);font-weight:600;font-size:13px
+}
+.editbar .etxt{font-size:12.5px;color:var(--muted)}
+.edithint{font-size:12px;color:var(--muted);margin:0 0 10px}
+.edithint b{color:var(--amber);font-weight:500}
+
 /* ---------- portal button ---------- */
 .btn-portal{
   position:relative;display:inline-flex;align-items:center;gap:10px;
@@ -531,6 +558,7 @@ details.code pre{
   backdrop-filter:blur(10px);border-top:1px solid var(--line);display:none
 }
 .exportbar.on{display:block}
+.exportbar.hidden{display:none}
 .exportbar .in{max-width:1440px;margin:0 auto;padding:12px 22px;display:flex;gap:11px;align-items:center;flex-wrap:wrap}
 .exportbar .sum{font-size:12.5px;color:var(--muted)}
 .exportbar .sum b{color:var(--text);font-family:var(--mono);font-weight:500}
@@ -726,6 +754,7 @@ footer code{font-family:var(--mono)}
           <option value="has">ระบุผู้ครอบครองแล้ว</option>
           <option value="none">ยังไม่ระบุผู้ครอบครอง</option>
         </select>
+        <button class="btn btn-g" data-edit="main">แก้ไขตาราง</button>
         <div class="pop">
           <button class="btn btn-g" id="colBtn">คอลัมน์</button>
           <div class="popmenu" id="colMenu"></div>
@@ -945,6 +974,17 @@ footer code{font-family:var(--mono)}
     </svg>
     <h2>วางไฟล์ได้เลย</h2>
     <p>รับได้ทีละหลายไฟล์ ระบบแยกประเภทให้เอง</p>
+  </div>
+</div>
+
+<div class="editbar" id="editbar">
+  <div class="in">
+    <span class="ebadge" id="edCount">0</span>
+    <span class="etxt">ช่องที่แก้ไขค้างไว้ · คอลัมน์ที่มี 🔒 ระบบเติมให้เองตอนบันทึก · Enter ลงแถวถัดไป · Tab ไปช่องขวา · Esc ยกเลิกช่องนั้น</span>
+    <div class="grow"></div>
+    <button class="btn btn-g" id="edCancel">ยกเลิกการแก้ไข</button>
+    <button class="btn btn-p" id="edSave">บันทึกการแก้ไข</button>
+    <button class="btn btn-g" id="edExit">ออกจากโหมดแก้ไข</button>
   </div>
 </div>
 
@@ -1568,7 +1608,7 @@ function renderHead(){
   const h = $('#vhead');
   h.style.gridTemplateColumns = t;
   h.innerHTML = COLS.map((c,i) => visible[i]
-    ? `<div class="h ${NUM.has(i)?'num':''}" data-s="${i}" title="${esc(c.trim())}">${esc(c.trim())}${sortCol===i?`<em>${sortDir>0?'▲':'▼'}</em>`:''}</div>` : '').join('');
+    ? `<div class="h ${NUM.has(i)?'num':''} ${editMode&&DERIVED.has(i)?'locked':''}" data-s="${i}" title="${esc(c.trim())}">${esc(c.trim())}${sortCol===i?`<em>${sortDir>0?'▲':'▼'}</em>`:''}</div>` : '').join('');
   h.querySelectorAll('[data-s]').forEach(el => el.onclick = () => {
     const i = +el.dataset.s;
     if (sortCol === i) sortDir = -sortDir; else { sortCol = i; sortDir = 1; }
@@ -1598,16 +1638,12 @@ function paint(){
   for (let i=start;i<end;i++){
     const r = view[i];
     let cells = '';
-    for (let j=0;j<COLS.length;j++){
-      if (!visible[j]) continue;
-      const v = r[j];
-      if (NUM.has(j)) cells += `<div class="c num ${v<0?'neg':''}">${typeof v==='number'?fmtMoney(v):''}</div>`;
-      else cells += `<div class="c ${CODE.has(j)?'code':''}" title="${esc(v)}">${esc(v)}</div>`;
-    }
+    for (let j=0;j<COLS.length;j++){ if (visible[j]) cells += cellHtml(r, j); }
     buf.push(`<div class="vrow" data-i="${i}" style="top:${i*ROW_H}px;height:${ROW_H}px;grid-template-columns:${t}">${cells}</div>`);
   }
   body.innerHTML = buf.join('');
-  body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(view[+el.dataset.i], el));
+  box._rows = view;
+  if (!editMode) body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(view[+el.dataset.i], el));
 }
 
 /* ---------- drawer ---------- */
@@ -1672,6 +1708,167 @@ function renderPivot(){
   $('#pinfo').textContent = `${fmtInt(items.length)} กลุ่ม จาก ${fmtInt(view.length)} แถวที่กรองไว้`;
 }
 
+/* ---------- inline editing ---------- */
+const DERIVED = new Set([2,13,14,15,17,19,21]);   // เติมอัตโนมัติ แก้มือไม่ได้
+const INTCOL  = new Set([3,4,12]);                // ตัวเลขจำนวนเต็ม
+let editMode = false;
+const pending = new Map();                        // row -> Map(col -> ข้อความที่พิมพ์)
+
+function baseText(row, col){
+  const v = row[col];
+  if (NUM.has(col)) return typeof v === 'number' ? fmtMoney(v) : '';
+  return String(v ?? '');
+}
+function cellText(row, col){
+  const m = pending.get(row);
+  return (m && m.has(col)) ? m.get(col) : baseText(row, col);
+}
+const cellDirty = (row, col) => { const m = pending.get(row); return !!(m && m.has(col)); };
+function stageEdit(row, col, txt){
+  let m = pending.get(row);
+  if (txt === baseText(row, col)){
+    if (m){ m.delete(col); if (!m.size) pending.delete(row); }
+  } else {
+    if (!m){ m = new Map(); pending.set(row, m); }
+    m.set(col, txt);
+  }
+  updateEditBar();
+}
+function pendingCount(){ let n = 0; for (const m of pending.values()) n += m.size; return n; }
+
+/** เติมคอลัมน์ที่ผูกกันใหม่หลังแก้ค่าต้นทาง */
+function rederive(row, cols){
+  const {costCenter, status, assetClass} = MASTERS;
+  const c = new Set(cols);
+  if (c.has(1)) row[2] = costCenter[row[1]] || '';
+  if (c.has(12)){
+    const hr = (row[12] !== '' && store.hr) ? store.hr.get(String(row[12])) : null;
+    row[13] = hr ? hr[0] : ''; row[14] = hr ? hr[1] : ''; row[15] = hr ? hr[2] : '';
+  }
+  if (c.has(3) || c.has(4)){
+    row[17] = `${row[3]}-${row[4]}`;
+    const h2 = store.hub2 ? store.hub2.get(row[17]) : null;
+    row[18] = h2 ? h2[0] : ''; row[20] = h2 ? h2[1] : '';
+  }
+  row[19] = status[row[18]] || '';
+  row[21] = assetClass[row[20]] || '';
+}
+function applyPending(){
+  let n = 0;
+  for (const [row, m] of pending){
+    const cols = [];
+    for (const [col, txt] of m){
+      const t = String(txt).trim();
+      if (NUM.has(col)) row[col] = toNum(t);
+      else if (INTCOL.has(col)) row[col] = t === '' ? '' : (isNaN(Number(t)) ? t : Number(t));
+      else row[col] = t;
+      cols.push(col); n++;
+    }
+    rederive(row, cols);
+  }
+  pending.clear();
+  return n;
+}
+
+/** สร้างรายการปัญหาใหม่จากข้อมูลปัจจุบัน ใช้ทั้งหลังรวมข้อมูลและหลังบันทึกการแก้ไข */
+function recomputeReport(){
+  const {costCenter} = MASTERS;
+  const ccSet = new Set(), hrSet = new Set();
+  const noHub2 = [], badHr = [], badCc = [], noOwner = [], zeroBook = [];
+  let sumA = 0, sumD = 0, sumB = 0;
+  for (const row of merged){
+    sumA += row[9]; sumD += row[10]; sumB += row[11];
+    if (!row[18] && !row[20]) noHub2.push(row);
+    const pers = row[12] === '' ? '' : String(row[12]);
+    if (pers && !row[13]){ hrSet.add(pers); badHr.push(row); }
+    if (!pers) noOwner.push(row);
+    if (row[1] && !(row[1] in costCenter)){ ccSet.add(row[1]); badCc.push(row); }
+    if (row[9] > 0 && row[11] === 0) zeroBook.push(row);
+  }
+  report = {rows: merged, noHub2, badHr, badCc, noOwner, zeroBook,
+            ccCodes:[...ccSet], hrCodes:[...hrSet], sumA, sumD, sumB};
+}
+
+function updateEditBar(){
+  const n = pendingCount();
+  $('#edCount').textContent = fmtInt(n);
+  $('#editbar').classList.toggle('on', editMode);
+  $('#edSave').disabled = n === 0;
+  $('#edCancel').disabled = n === 0;
+  $('#exportbar').classList.toggle('hidden', editMode);
+  $$('[data-edit]').forEach(b => b.textContent = editMode ? 'ปิดโหมดแก้ไข' : 'แก้ไขตาราง');
+}
+function setEditMode(v){
+  if (!v && pendingCount() && !confirm('ยังมีการแก้ไขที่ไม่ได้บันทึก จะทิ้งทั้งหมดหรือไม่')) return;
+  if (!v) pending.clear();
+  editMode = v;
+  updateEditBar();
+  redrawTables();
+}
+function redrawTables(){
+  if (merged.length) renderTable();
+  $$('.ibody.on').forEach(host => {
+    const i = +host.id.replace('ib','');
+    if (ISSUES[i]) mountVT(host, ISSUES[i][2]);
+  });
+}
+
+/* คืนค่า html ของเซลล์หนึ่งช่อง ใช้ร่วมกันทั้งตารางหลักและตารางเคส */
+function cellHtml(row, j){
+  const txt = cellText(row, j);
+  const cls = [
+    'c',
+    NUM.has(j) ? 'num' : (CODE.has(j) ? 'code' : ''),
+    (NUM.has(j) && row[j] < 0) ? 'neg' : '',
+    cellDirty(row, j) ? 'dirty' : '',
+    (editMode && DERIVED.has(j)) ? 'locked' : ''
+  ].filter(Boolean).join(' ');
+  const ed = (editMode && !DERIVED.has(j)) ? ' contenteditable="true" data-col="'+j+'"' : '';
+  return `<div class="${cls}"${ed} title="${esc(txt)}">${esc(txt)}</div>`;
+}
+
+function commitFromEl(el){
+  const cont = el.closest('.vt');
+  const rowEl = el.closest('.vrow');
+  if (!cont || !rowEl || !cont._rows) return;
+  const row = cont._rows[+rowEl.dataset.i];
+  if (!row) return;
+  const col = +el.dataset.col;
+  stageEdit(row, col, el.textContent.replace(/\s+/g,' ').trim());
+  el.classList.toggle('dirty', cellDirty(row, col));
+  el.textContent = cellText(row, col);
+}
+const isEditableCell = el => !!(el && el.dataset && el.dataset.col !== undefined && el.getAttribute && el.getAttribute('contenteditable') === 'true');
+document.addEventListener('focusin', e => {
+  const el = e.target;
+  if (isEditableCell(el)) el.dataset.orig = el.textContent;
+});
+document.addEventListener('focusout', e => {
+  const el = e.target;
+  if (isEditableCell(el)) commitFromEl(el);
+});
+document.addEventListener('keydown', e => {
+  const el = e.target;
+  if (!isEditableCell(el)) return;
+  if (e.key === 'Enter'){ e.preventDefault(); step(el, 1); }
+  else if (e.key === 'Escape'){ e.preventDefault(); el.textContent = el.dataset.orig || ''; el.blur(); }
+  else if (e.key === 'Tab'){ e.preventDefault(); stepCol(el, e.shiftKey ? -1 : 1); }
+});
+function step(el, dir){
+  const rowEl = el.closest('.vrow');
+  const col = el.dataset.col;
+  const next = dir > 0 ? rowEl.nextElementSibling : rowEl.previousElementSibling;
+  el.blur();
+  if (next){ const t = next.querySelector(`[data-col="${col}"]`); if (t) t.focus(); }
+}
+function stepCol(el, dir){
+  const cells = [...el.closest('.vrow').querySelectorAll('[data-col]')];
+  const i = cells.indexOf(el);
+  el.blur();
+  const t = cells[i + dir];
+  if (t) t.focus();
+}
+
 /* ---------- reusable virtual table ---------- */
 const FULLW = W.reduce((a,b) => a+b, 0);
 function mountVT(host, rows){
@@ -1684,7 +1881,8 @@ function mountVT(host, rows){
   const t = W.map(w => w+'px').join(' ');
   head.style.gridTemplateColumns = t;
   head.style.minWidth = FULLW+'px';
-  head.innerHTML = COLS.map((c,i) => `<div class="h ${NUM.has(i)?'num':''}" style="cursor:default" title="${esc(c.trim())}">${esc(c.trim())}</div>`).join('');
+  head.innerHTML = COLS.map((c,i) => `<div class="h ${NUM.has(i)?'num':''} ${editMode&&DERIVED.has(i)?'locked':''}" style="cursor:default" title="${esc(c.trim())}">${esc(c.trim())}</div>`).join('');
+  box._rows = rows;
   body.style.height = (rows.length*ROW_H)+'px';
   body.style.minWidth = FULLW+'px';
 
@@ -1695,15 +1893,11 @@ function mountVT(host, rows){
     for (let i=start;i<end;i++){
       const r = rows[i];
       let cells = '';
-      for (let j=0;j<COLS.length;j++){
-        const v = r[j];
-        if (NUM.has(j)) cells += `<div class="c num ${v<0?'neg':''}">${typeof v==='number'?fmtMoney(v):''}</div>`;
-        else cells += `<div class="c ${CODE.has(j)?'code':''}" title="${esc(v)}">${esc(v)}</div>`;
-      }
+      for (let j=0;j<COLS.length;j++) cells += cellHtml(r, j);
       buf.push(`<div class="vrow" data-i="${i}" style="top:${i*ROW_H}px;height:${ROW_H}px;grid-template-columns:${t}">${cells}</div>`);
     }
     body.innerHTML = buf.join('');
-    body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(rows[+el.dataset.i], el));
+    if (!editMode) body.querySelectorAll('.vrow').forEach(el => el.onclick = () => openDrawer(rows[+el.dataset.i], el));
   };
   box.onscroll = draw;
   draw();
@@ -1717,6 +1911,7 @@ function mountVT(host, rows){
 
 /* ---------- quality ---------- */
 let ISSUES = [];
+const openIssues = new Set();
 function renderQA(){
   ISSUES = [
     ['ไม่พบใน HUB2',
@@ -1753,6 +1948,7 @@ function renderQA(){
           <p>${esc(x[1])}</p>
         </div>
         <button class="btn btn-g btn-s" data-t="${i}">ดูตาราง</button>
+        <button class="btn btn-g btn-s" data-edit="${i}">แก้ไขตาราง</button>
         <button class="btn btn-a btn-s" data-x="${i}">Excel</button>
         <button class="btn btn-g btn-s" data-c="${i}">CSV</button>
       </div>
@@ -1763,7 +1959,18 @@ function renderQA(){
     const i = +b.dataset.t, host = $('#ib'+i);
     const open = host.classList.toggle('on');
     b.textContent = open ? 'ซ่อนตาราง' : 'ดูตาราง';
-    if (open && !host.dataset.built){ mountVT(host, ISSUES[i][2]); host.dataset.built = '1'; }
+    open ? openIssues.add(i) : openIssues.delete(i);
+    if (open) mountVT(host, ISSUES[i][2]);
+  });
+  $('#issues').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
+    const i = +b.dataset.edit, host = $('#ib'+i);
+    if (!editMode){
+      host.classList.add('on');
+      openIssues.add(i);
+      $('#issues').querySelector(`[data-t="${i}"]`).textContent = 'ซ่อนตาราง';
+      mountVT(host, ISSUES[i][2]);
+      setEditMode(true);
+    } else setEditMode(false);
   });
   $('#issues').querySelectorAll('[data-x]').forEach(b => b.onclick = () => issueXlsx(+b.dataset.x));
   $('#issues').querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
@@ -1771,6 +1978,16 @@ function renderQA(){
     dl(csvOf(COLS, x[2]), `Asset-Hub-${x[3]}-${stamp()}.csv`);
     toast('ดาวน์โหลด CSV แล้ว', 'ok');
   });
+  // เปิดตารางที่กางค้างไว้กลับมาให้เหมือนเดิม
+  openIssues.forEach(i => {
+    const host = $('#ib'+i);
+    if (!host || !ISSUES[i]) return;
+    host.classList.add('on');
+    const t = $('#issues').querySelector(`[data-t="${i}"]`);
+    if (t) t.textContent = 'ซ่อนตาราง';
+    mountVT(host, ISSUES[i][2]);
+  });
+  updateEditBar();
   $('#tabIssues').textContent = ISSUES.length;
 }
 
@@ -2501,6 +2718,21 @@ $('#copyCode').onclick = async () => {
   }
 };
 
+$('#edExit').onclick = () => setEditMode(false);
+$('#edCancel').onclick = () => { if (confirm('ทิ้งการแก้ไขที่ยังไม่บันทึกทั้งหมด?')){ pending.clear(); updateEditBar(); redrawTables(); toast('ยกเลิกการแก้ไขแล้ว'); } };
+$('#edSave').onclick = () => {
+  const n = applyPending();
+  recomputeReport();
+  updateEditBar();
+  buildFilters(); applyFilter(); renderQA();
+  if (editMode) redrawTables();
+  toast(`บันทึก ${fmtInt(n)} ช่องแล้ว · ตารางหลักและรายการปัญหาอัปเดตตามแล้ว`, 'ok');
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-edit="main"]');
+  if (b) setEditMode(!editMode);
+});
+
 $('#dClose').onclick = closeDrawer;
 $('#scrim').onclick = closeDrawer;
 $('#theme').onclick = () => {
@@ -2510,6 +2742,7 @@ $('#theme').onclick = () => {
 };
 const doReset = () => {
   if (merged.length && !confirm('ล้างไฟล์และผลลัพธ์ทั้งหมด?')) return;
+  editMode = false; pending.clear(); updateEditBar();
   store.hub1 = store.hub2 = store.hr = null;
   merged = []; view = []; report = null;
   ['hub1','hub2','hr'].forEach(k => setPort(k, null, 0));
